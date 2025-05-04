@@ -67,8 +67,6 @@ export class PricingService {
           return "Claude";
         } else if (modelName.includes("mistral.pixtral-large")) {
           return "Pixtral Large 25.02";
-        } else if (modelName.includes("llama")) {
-          return "Llama";
         }
       }
     }
@@ -82,8 +80,6 @@ export class PricingService {
       return "Nova Lite";
     } else if (modelId.includes("amazon.nova-pro")) {
       return "Nova Pro";
-    } else if (modelId.includes("llama")) {
-      return "Llama";
     }
 
     return "Claude"; // Default to Claude as fallback
