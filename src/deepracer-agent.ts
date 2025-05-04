@@ -67,9 +67,11 @@ class DeepRacerAgent {
 
     let prompt = "Analyze this image from the DeepRacer car's camera.";
     if (this.imageCount > 1) {
-      prompt += " Maintain context from previous images, explain how it impacts the latest image.";
+      prompt +=
+        " Maintain context from previous images, explain how it impacts the latest image.";
     } else {
-      prompt += " This is the first image. The first curve is slightly to the left.";
+      prompt +=
+        " This is the first image. The first curve is slightly to the left.";
     }
 
     try {
@@ -142,6 +144,50 @@ class DeepRacerAgent {
             );
             throw new Error("Unexpected Mistral response structure");
           }
+        } else if (this.modelId.includes("amazon.nova")) {
+          // Handle Amazon Nova response format
+          if (response.output?.message?.content) {
+            const content = response.output.message.content[0]?.text || "";
+            this.logger.debug("Raw content from Nova model:", content);
+
+            // Try to extract JSON from content if it's wrapped in code blocks
+            const jsonMatch = content.match(
+              /```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/
+            );
+
+            if (jsonMatch) {
+              const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
+              this.logger.debug("Extracted JSON string:", jsonString);
+
+              try {
+                drivingAction = JSON.parse(jsonString);
+              } catch (jsonParseError) {
+                this.logger.error(
+                  "Failed to parse extracted JSON from Nova response:",
+                  jsonParseError
+                );
+                throw new Error("Invalid JSON in Nova response");
+              }
+            } else {
+              // If no code block found, try parsing the entire content
+              try {
+                drivingAction = JSON.parse(content.trim());
+                this.logger.debug("Parsed entire Nova content as JSON");
+              } catch (e) {
+                this.logger.error(
+                  "Failed to parse Nova content as JSON:",
+                  content
+                );
+                throw new Error("No valid JSON found in Nova response");
+              }
+            }
+          } else {
+            this.logger.error(
+              "Unexpected Nova response structure:",
+              JSON.stringify(response)
+            );
+            throw new Error("Unexpected Nova response structure");
+          }
         } else {
           // For other models, try to parse the entire response as JSON
           drivingAction = response;
@@ -212,18 +258,33 @@ class DeepRacerAgent {
     try {
       // Different models return token counts in different formats
       if (response.usage) {
-        // Mistral/Pixtral format
-        const promptTokens = response.usage.prompt_tokens || 0;
-        const completionTokens = response.usage.completion_tokens || 0;
-
-        this.totalPromptTokens += promptTokens;
-        this.totalCompletionTokens += completionTokens;
-
-        this.logger.debug(
-          `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
-            promptTokens + completionTokens
-          }`
-        );
+        if (response.usage.inputTokens !== undefined) {
+          // Amazon Nova format
+          const promptTokens = response.usage.inputTokens || 0;
+          const completionTokens = response.usage.outputTokens || 0;
+          
+          this.totalPromptTokens += promptTokens;
+          this.totalCompletionTokens += completionTokens;
+          
+          this.logger.debug(
+            `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
+              promptTokens + completionTokens
+            }`
+          );
+        } else {
+          // Mistral/Pixtral format
+          const promptTokens = response.usage.prompt_tokens || 0;
+          const completionTokens = response.usage.completion_tokens || 0;
+          
+          this.totalPromptTokens += promptTokens;
+          this.totalCompletionTokens += completionTokens;
+          
+          this.logger.debug(
+            `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
+              promptTokens + completionTokens
+            }`
+          );
+        }
       } else if (response.usage_metadata) {
         // Claude format
         const promptTokens = response.usage_metadata.input_tokens || 0;
@@ -331,7 +392,7 @@ async function main() {
     mainLogger.info(`Found ${imageFiles.length} images to process`);
 
     // Process each image in sequence
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 2; i++) {
       const imagePath = path.join(testImagesDir, imageFiles[i]);
       mainLogger.info(
         `\n[${i + 1}/${imageFiles.length}] 🏎️ Processing image: ${

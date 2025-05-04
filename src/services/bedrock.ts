@@ -100,27 +100,50 @@ class BedrockService {
       // Add to conversation context if maintaining context
       if (maintainContext) {
         // Add user message to context - use exact same format as in the request
-        const userMessage = {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            modelId.includes("claude")
-              ? {
-                  type: "image",
+        let userMessage;
+        
+        if (modelId.includes("amazon.nova")) {
+          // Format specifically for Nova
+          userMessage = {
+            role: "user",
+            content: [
+              {
+                image: {
+                  format: "jpeg",
                   source: {
-                    type: "base64",
-                    media_type: "image/jpeg",
-                    data: base64Image,
-                  },
+                    bytes: base64Image
+                  }
                 }
-              : {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`,
+              },
+              {
+                text: prompt
+              }
+            ]
+          };
+        } else {
+          // Format for other models
+          userMessage = {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              modelId.includes("claude")
+                ? {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: "image/jpeg",
+                      data: base64Image,
+                    },
+                  }
+                : {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:image/jpeg;base64,${base64Image}`,
+                    },
                   },
-                },
-          ],
-        };
+            ],
+          };
+        }
 
         // Add assistant response to context
         let assistantMessage;
@@ -137,6 +160,15 @@ class BedrockService {
               responseBody.choices?.[0]?.message?.content ||
               responseBody.messages?.[0]?.content ||
               JSON.stringify(responseBody),
+          };
+        } else if (modelId.includes("amazon.nova")) {
+          assistantMessage = {
+            role: "assistant",
+            content: [
+              {
+                text: responseBody.output?.message?.content?.[0]?.text || JSON.stringify(responseBody)
+              }
+            ]
           };
         }
 
@@ -275,6 +307,46 @@ class BedrockService {
             ],
           },
         ],
+      };
+    } else if (modelId.includes("amazon.nova")) {
+      // Amazon Nova models payload - Updated to match Nova Lite's expected format
+      const fullPrompt = this.systemPrompt 
+        ? `${this.systemPrompt}\n\n${prompt}`
+        : prompt;
+        
+      return {
+        inferenceConfig: {
+          max_new_tokens: parseInt(process.env.MAX_TOKENS || "1000")
+        },
+        messages: [
+          ...(this.conversationContext.length > 0
+            ? this.conversationContext.slice(-2).map(msg => {
+                // Ensure proper format for each message in context
+                return {
+                  role: msg.role,
+                  content: Array.isArray(msg.content) 
+                    ? msg.content 
+                    : [{ text: msg.content }]
+                };
+              })
+            : []),
+          {
+            role: "user",
+            content: [
+              {
+                image: {
+                  format: "jpeg",
+                  source: {
+                    bytes: base64Image
+                  }
+                }
+              },
+              {
+                text: fullPrompt
+              }
+            ]
+          }
+        ]
       };
     } else {
       // Default payload structure
