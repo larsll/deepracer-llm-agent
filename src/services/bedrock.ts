@@ -55,8 +55,7 @@ class BedrockService {
    */
   async processImageSync(
     imageBuffer: Buffer,
-    modelId: string = process.env.DEFAULT_MODEL_ID ||
-      "anthropic.claude-3-sonnet-20240229-v1:0",
+    modelId: string,
     prompt: string = "Analyze this image",
     maintainContext: boolean = true
   ): Promise<any> {
@@ -193,8 +192,7 @@ class BedrockService {
    */
   async processImageFromFile(
     filePath: string,
-    modelId: string = process.env.DEFAULT_MODEL_ID ||
-      "anthropic.claude-3-sonnet-20240229-v1:0",
+    modelId: string,
     prompt: string = "Analyze this image",
     maintainContext: boolean = true
   ): Promise<any> {
@@ -210,8 +208,7 @@ class BedrockService {
    */
   async processImageSequence(
     imagePaths: string[],
-    modelId: string = process.env.DEFAULT_MODEL_ID ||
-      "anthropic.claude-3-sonnet-20240229-v1:0",
+    modelId: string,
     prompts: string | string[]
   ): Promise<any[]> {
     // Clear previous context

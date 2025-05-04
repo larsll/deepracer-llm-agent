@@ -33,7 +33,7 @@ class DeepRacerAgent {
       options.modelId ||
       process.env.INFERENCE_PROFILE_ARN ||
       process.env.DEFAULT_MODEL_ID ||
-      "anthropic.claude-3-sonnet-20240229-v1:0";
+      "";
 
     // Set system prompt if provided
     if (options.systemPrompt) {
