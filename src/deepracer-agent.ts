@@ -66,14 +66,14 @@ class DeepRacerAgent {
         `You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. ` +
           `Your job is to analyze track images from the car's perspective and suggest optimal actions. ` +
           `You should consider the track features, curves, and obstacles to make driving decisions. ` +
-          `The car is a 1/18th scale model, so the speed and steering angles should be realistic for a small car. ` +
           `The car has ackermann steering geometry, so the steering angle should be between -20 and +20 degrees. ` +
-          `Full steering gives a turning radius of 0.5m, and the car can go up to 4 m/s. ` +
           `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. ` +
           `Positive steering angles turn the car left, negative steering angles turn the car right. ` +
+          `The car will roll at speed, making the picture rotate. The actual track is flat. ` +
+          `The first pixel received is the top left corner of the image. ` +
           `Do not add + before any positive steering angle. ` +
-          `Include short "reasoning" in your response to explain your decision. ` +
-          `Include a field cotaining your cumulative "knowledge", showing what you have learned about driving the car. Retain knowledge from previous iterations.` +
+          `Include short "reasoning" in your response to explain your decision. Document difference to previous image provided. ` +
+          `Include a field cotaining your current "knowledge", structuring what you have learned about driving the car. Review and update knowledge from previous iterations.` +
           ``
       );
     }
@@ -104,7 +104,7 @@ class DeepRacerAgent {
       prompt += " Compare with previous image to interpret how you are moving.";
     } else {
       prompt +=
-        " This is the first image. The first curve is slightly to the left.";
+        " This is the first image.";
     }
 
     try {
