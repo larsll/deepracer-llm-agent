@@ -10,6 +10,7 @@ class BedrockService {
   private conversationContext: Array<any> = [];
   private systemPrompt: string | null = null;
   private logger: Logger;
+  private maxContextMessages: number = 2;
 
   constructor(logLevel?: LogLevel) {
     // Initialize logger
@@ -38,6 +39,11 @@ class BedrockService {
     this.logger.info("System prompt set");
   }
 
+  setMaxContextMessages(maxMessages: number): void {
+    this.logger.info(`Max context messages set to ${maxMessages}`);
+    this.maxContextMessages = maxMessages;
+  }
+
   /**
    * Clear the conversation history
    */
@@ -51,24 +57,17 @@ class BedrockService {
    * @param imageBuffer The image as a buffer
    * @param modelId The Bedrock model ID to use
    * @param prompt Instructions for the model
-   * @param maintainContext Whether to maintain conversation context
    */
   async processImageSync(
     imageBuffer: Buffer,
     modelId: string,
-    prompt: string = "Analyze this image",
-    maintainContext: boolean = true
+    prompt: string = "Analyze this image"
   ): Promise<any> {
     // Convert image to base64
     const base64Image = imageBuffer.toString("base64");
 
     // Create request payload based on the model
-    const payload = this.createPayloadForModel(
-      modelId,
-      base64Image,
-      prompt,
-      maintainContext
-    );
+    const payload = this.createPayloadForModel(modelId, base64Image, prompt);
 
     // Invoke Bedrock model with timeout
     const command = new InvokeModelCommand({
@@ -97,10 +96,10 @@ class BedrockService {
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
       // Add to conversation context if maintaining context
-      if (maintainContext) {
+      if (this.maxContextMessages > 0) {
         // Add user message to context - use exact same format as in the request
         let userMessage;
-        
+
         if (modelId.includes("amazon.nova")) {
           // Format specifically for Nova
           userMessage = {
@@ -110,14 +109,14 @@ class BedrockService {
                 image: {
                   format: "jpeg",
                   source: {
-                    bytes: base64Image
-                  }
-                }
+                    bytes: base64Image,
+                  },
+                },
               },
               {
-                text: prompt
-              }
-            ]
+                text: prompt,
+              },
+            ],
           };
         } else {
           // Format for other models
@@ -165,9 +164,11 @@ class BedrockService {
             role: "assistant",
             content: [
               {
-                text: responseBody.output?.message?.content?.[0]?.text || JSON.stringify(responseBody)
-              }
-            ]
+                text:
+                  responseBody.output?.message?.content?.[0]?.text ||
+                  JSON.stringify(responseBody),
+              },
+            ],
           };
         }
 
@@ -193,11 +194,10 @@ class BedrockService {
   async processImageFromFile(
     filePath: string,
     modelId: string,
-    prompt: string = "Analyze this image",
-    maintainContext: boolean = true
+    prompt: string = "Analyze this image"
   ): Promise<any> {
     const imageBuffer = fs.readFileSync(filePath);
-    return this.processImageSync(imageBuffer, modelId, prompt, maintainContext);
+    return this.processImageSync(imageBuffer, modelId, prompt);
   }
 
   /**
@@ -228,8 +228,7 @@ class BedrockService {
       const result = await this.processImageFromFile(
         imagePath,
         modelId,
-        prompt,
-        true
+        prompt
       );
       results.push(result);
     }
@@ -243,8 +242,7 @@ class BedrockService {
   private createPayloadForModel(
     modelId: string,
     base64Image: string,
-    prompt: string,
-    includeContext: boolean = true
+    prompt: string
   ): any {
     // Store only the most recent exchange in this format rather than cumulative history
     if (modelId.includes("claude")) {
@@ -257,7 +255,7 @@ class BedrockService {
             content: this.systemPrompt || "You are an AI driver assistant.",
           },
           ...(this.conversationContext.length > 0
-            ? this.conversationContext.slice(-2)
+            ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
           {
             role: "user",
@@ -285,11 +283,7 @@ class BedrockService {
             content: this.systemPrompt || "You are an AI driver assistant.",
           },
           ...(this.conversationContext.length > 0
-            ? [
-                // Only include the last user message and assistant response if available
-                this.conversationContext[this.conversationContext.length - 2],
-                this.conversationContext[this.conversationContext.length - 1],
-              ]
+            ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
           {
             role: "user",
@@ -307,25 +301,35 @@ class BedrockService {
       };
     } else if (modelId.includes("amazon.nova")) {
       // Amazon Nova models payload - Updated to match Nova Lite's expected format
-      const fullPrompt = this.systemPrompt 
+      const fullPrompt = this.systemPrompt
         ? `${this.systemPrompt}\n\n${prompt}`
         : prompt;
-        
+
       return {
         inferenceConfig: {
-          max_new_tokens: parseInt(process.env.MAX_TOKENS || "1000")
+          max_new_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
         },
         messages: [
+          {
+            role: "user",
+            content: [
+              {
+                text: this.systemPrompt || "You are an AI driver assistant.",
+              },
+            ],
+          },
           ...(this.conversationContext.length > 0
-            ? this.conversationContext.slice(-2).map(msg => {
-                // Ensure proper format for each message in context
-                return {
-                  role: msg.role,
-                  content: Array.isArray(msg.content) 
-                    ? msg.content 
-                    : [{ text: msg.content }]
-                };
-              })
+            ? this.conversationContext
+                .slice(-this.maxContextMessages * 2)
+                .map((msg) => {
+                  // Ensure proper format for each message in context
+                  return {
+                    role: msg.role,
+                    content: Array.isArray(msg.content)
+                      ? msg.content
+                      : [{ text: msg.content }],
+                  };
+                })
             : []),
           {
             role: "user",
@@ -334,16 +338,16 @@ class BedrockService {
                 image: {
                   format: "jpeg",
                   source: {
-                    bytes: base64Image
-                  }
-                }
+                    bytes: base64Image,
+                  },
+                },
               },
               {
-                text: fullPrompt
-              }
-            ]
-          }
-        ]
+                text: fullPrompt,
+              },
+            ],
+          },
+        ],
       };
     } else {
       // Default payload structure

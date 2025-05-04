@@ -16,12 +16,14 @@ class DeepRacerAgent {
   private totalPromptTokens: number = 0;
   private totalCompletionTokens: number = 0;
   private logger: Logger;
+  private maxContextMessages: number;
 
   constructor(
     options: {
       modelId?: string;
       systemPrompt?: string;
       logLevel?: LogLevel;
+      maxContextMessages?: number;
     } = {}
   ) {
     // Initialize logger
@@ -41,6 +43,20 @@ class DeepRacerAgent {
       process.env.INFERENCE_PROFILE_ARN ||
       process.env.DEFAULT_MODEL_ID ||
       "";
+
+    // Set maximum context messages to keep
+    this.maxContextMessages =
+      options.maxContextMessages ||
+      (process.env.MAX_CONTEXT_MESSAGES
+        ? parseInt(process.env.MAX_CONTEXT_MESSAGES)
+        : 0);
+
+    if (this.maxContextMessages > 0) {
+      this.logger.info(
+        `Context memory limited to last ${this.maxContextMessages} messages`
+      );
+      this.bedrockService.setMaxContextMessages(this.maxContextMessages);
+    }
 
     // Set system prompt if provided
     if (options.systemPrompt) {
@@ -95,8 +111,7 @@ class DeepRacerAgent {
       const response = await this.bedrockService.processImageSync(
         imageBuffer,
         this.modelId,
-        prompt,
-        true // maintain context
+        prompt
       );
 
       // Track token usage
@@ -403,6 +418,7 @@ async function main() {
     frames?: number;
     skipFactor?: number;
     startOffset?: number;
+    maxContextMessages?: number;
   } = {};
 
   // Process command line arguments
@@ -431,6 +447,14 @@ async function main() {
         );
         return;
       }
+    } else if (args[i] === "--context" || args[i] === "-c") {
+      options.maxContextMessages = parseInt(args[++i], 10);
+      if (isNaN(options.maxContextMessages) || options.maxContextMessages < 0) {
+        mainLogger.error(
+          "Invalid value for --context. Must be a non-negative integer."
+        );
+        return;
+      }
     } else if (args[i] === "--help" || args[i] === "-h") {
       console.log(`
 DeepRacer LLM Agent Image Processing
@@ -439,6 +463,7 @@ Options:
   --frames, -f <number>   Number of frames to process (default: process all frames)
   --speed, -x <number>    Process every Nth frame (default: 2)
   --start, -s <number>    Start processing from Nth image (default: 0)
+  --context, -c <number>  Maximum number of previous messages to retain in context (default: unlimited)
   --help, -h              Show this help message
       `);
       return;
@@ -454,7 +479,10 @@ Options:
     ? LogLevel[process.env.LOG_LEVEL.toUpperCase() as keyof typeof LogLevel] ||
       LogLevel.INFO
     : LogLevel.INFO;
-  const agent = new DeepRacerAgent({ logLevel });
+  const agent = new DeepRacerAgent({
+    logLevel,
+    maxContextMessages: options.maxContextMessages,
+  });
 
   try {
     const testImagesDir = path.join(__dirname, "..", "test-images");
