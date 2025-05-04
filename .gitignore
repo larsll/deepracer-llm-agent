@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+lib/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE and editor files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.sublime-*
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+.directory
+
+# AWS credentials and config files
+.aws/
+credentials
+config
+
+# Project specific
+tmp/
+uploads/
+processed-images/
+.cache/
