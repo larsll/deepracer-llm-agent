@@ -43,10 +43,11 @@ class DeepRacerAgent {
         `You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. ` +
           `Your job is to analyze track images from the car's perspective and suggest optimal actions. ` +
           `You should consider the track features, curves, and obstacles to make driving decisions. ` +
+          `You get 30 frames per second, so changes between frames should be small. ` +
           `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. ` +
-          `Negative steering angles turn the car left, positive turn it right. ` +
+          `Positive steering angles turn the car left, negative steering angles turn the car right. ` +
           `Do not add + before any positive steering angle. ` +
-          `Include short "reasoning" in your response to explain your decision using Rally navigator terminology.`
+          `Include short "reasoning" in your response to explain your decision.`
       );
     }
 
@@ -66,9 +67,9 @@ class DeepRacerAgent {
 
     let prompt = "Analyze this image from the DeepRacer car's camera.";
     if (this.imageCount > 1) {
-      prompt += " Maintain context from previous images.";
+      prompt += " Maintain context from previous images, explain how it impacts the latest image.";
     } else {
-      prompt += " This is the first image. We are in a slight left turn.";
+      prompt += " This is the first image. The first curve is slightly to the left.";
     }
 
     try {
