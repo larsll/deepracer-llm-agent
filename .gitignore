@@ -48,3 +48,8 @@ tmp/
 uploads/
 processed-images/
 .cache/
+
+# Environment variables - don't commit these!
+.env
+.env.local
+.env.*.local
