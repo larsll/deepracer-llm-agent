@@ -29,9 +29,11 @@ class DeepRacerAgent {
 
     // Initialize the Bedrock service
     this.bedrockService = new BedrockService();
-    
+
     // Initialize pricing service with AWS region from environment
-    this.pricingService = new PricingService(process.env.AWS_REGION || 'us-east-1');
+    this.pricingService = new PricingService(
+      process.env.AWS_REGION || "us-east-1"
+    );
 
     // Set model ID from options, env, or default
     this.modelId =
@@ -49,22 +51,27 @@ class DeepRacerAgent {
           `Your job is to analyze track images from the car's perspective and suggest optimal actions. ` +
           `You should consider the track features, curves, and obstacles to make driving decisions. ` +
           `The car is a 1/18th scale model, so the speed and steering angles should be realistic for a small car. ` +
-          `The car has acker steering, so the steering angle should be between -20 and +20 degrees. ` +
+          `The car has ackermann steering geometry, so the steering angle should be between -20 and +20 degrees. ` +
           `Full steering gives a turning radius of 0.5m, and the car can go up to 4 m/s. ` +
           `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. ` +
           `Positive steering angles turn the car left, negative steering angles turn the car right. ` +
           `Do not add + before any positive steering angle. ` +
-          `Include short "reasoning" in your response to explain your decision.`
+          `Include short "reasoning" in your response to explain your decision. ` +
+          `Include a field cotaining your cumulative "knowledge", showing what you have learned about driving the car. Retain knowledge from previous iterations.` +
+          ``
       );
     }
 
     this.logger.info(
       `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
     );
-    
+
     // Load pricing data for the model
-    this.pricingService.loadModelPricing(this.modelId)
-      .catch(error => this.logger.warn(`Failed to initialize pricing: ${error}`));
+    this.pricingService
+      .loadModelPricing(this.modelId)
+      .catch((error) =>
+        this.logger.warn(`Failed to initialize pricing: ${error}`)
+      );
   }
 
   /**
@@ -78,8 +85,7 @@ class DeepRacerAgent {
 
     let prompt = "Analyze this image from the DeepRacer car's camera.";
     if (this.imageCount > 1) {
-      prompt +=
-        " Maintain context from previous images, explain how it impacts the latest image.";
+      prompt += " Compare with previous image to interpret how you are moving.";
     } else {
       prompt +=
         " This is the first image. The first curve is slightly to the left.";
@@ -273,10 +279,10 @@ class DeepRacerAgent {
           // Amazon Nova format
           const promptTokens = response.usage.inputTokens || 0;
           const completionTokens = response.usage.outputTokens || 0;
-          
+
           this.totalPromptTokens += promptTokens;
           this.totalCompletionTokens += completionTokens;
-          
+
           this.logger.debug(
             `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
               promptTokens + completionTokens
@@ -286,10 +292,10 @@ class DeepRacerAgent {
           // Mistral/Pixtral format
           const promptTokens = response.usage.prompt_tokens || 0;
           const completionTokens = response.usage.completion_tokens || 0;
-          
+
           this.totalPromptTokens += promptTokens;
           this.totalCompletionTokens += completionTokens;
-          
+
           this.logger.debug(
             `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
               promptTokens + completionTokens
@@ -330,10 +336,10 @@ class DeepRacerAgent {
   } {
     // Get current pricing
     const currentPricing = this.pricingService.getPricing();
-    
+
     // Calculate costs using the pricing service
     const costs = this.pricingService.calculateCost(
-      this.totalPromptTokens, 
+      this.totalPromptTokens,
       this.totalCompletionTokens
     );
 
@@ -342,7 +348,7 @@ class DeepRacerAgent {
       completionTokens: this.totalCompletionTokens,
       totalTokens: this.totalPromptTokens + this.totalCompletionTokens,
       estimatedCost: costs.totalCost,
-      pricing: currentPricing
+      pricing: currentPricing,
     };
   }
 
@@ -363,7 +369,7 @@ class DeepRacerAgent {
   /**
    * Reset the agent's conversation history and token counts
    * @param resetTokens Whether to reset token tracking (default: false)
-   * @param refreshPricing Whether to refresh pricing data (default: false) 
+   * @param refreshPricing Whether to refresh pricing data (default: false)
    */
   reset(resetTokens: boolean = false, refreshPricing: boolean = false): void {
     this.bedrockService.clearConversation();
@@ -378,8 +384,11 @@ class DeepRacerAgent {
     }
 
     if (refreshPricing) {
-      this.pricingService.loadModelPricing(this.modelId)
-        .catch(error => this.logger.warn(`Failed to refresh pricing: ${error}`));
+      this.pricingService
+        .loadModelPricing(this.modelId)
+        .catch((error) =>
+          this.logger.warn(`Failed to refresh pricing: ${error}`)
+        );
     }
   }
 }
@@ -387,6 +396,58 @@ class DeepRacerAgent {
 // Example usage
 async function main() {
   const mainLogger = getLogger("Main");
+
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  const options: {
+    frames?: number;
+    skipFactor?: number;
+    startOffset?: number;
+  } = {};
+
+  // Process command line arguments
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--frames" || args[i] === "-f") {
+      options.frames = parseInt(args[++i], 10);
+      if (isNaN(options.frames) || options.frames <= 0) {
+        mainLogger.error(
+          "Invalid value for --frames. Must be a positive integer."
+        );
+        return;
+      }
+    } else if (args[i] === "--speed" || args[i] === "-x") {
+      options.skipFactor = parseInt(args[++i], 10);
+      if (isNaN(options.skipFactor) || options.skipFactor <= 0) {
+        mainLogger.error(
+          "Invalid value for --skip. Must be a positive integer."
+        );
+        return;
+      }
+    } else if (args[i] === "--start" || args[i] === "-s") {
+      options.startOffset = parseInt(args[++i], 10);
+      if (isNaN(options.startOffset) || options.startOffset < 0) {
+        mainLogger.error(
+          "Invalid value for --start. Must be a non-negative integer."
+        );
+        return;
+      }
+    } else if (args[i] === "--help" || args[i] === "-h") {
+      console.log(`
+DeepRacer LLM Agent Image Processing
+
+Options:
+  --frames, -f <number>   Number of frames to process (default: process all frames)
+  --speed, -x <number>    Process every Nth frame (default: 2)
+  --start, -s <number>    Start processing from Nth image (default: 0)
+  --help, -h              Show this help message
+      `);
+      return;
+    }
+  }
+
+  // Default skipFactor to 2 if not specified
+  const skipFactor = options.skipFactor || 2;
+  mainLogger.info(`Using frame skip factor: ${skipFactor}`);
 
   // Create the DeepRacer agent with a specified log level
   const logLevel = process.env.LOG_LEVEL
@@ -421,13 +482,33 @@ async function main() {
 
     mainLogger.info(`Found ${imageFiles.length} images to process`);
 
-    // Process each image in sequence
-    for (let i = 0; i < 25; i++) {
-      const j = 2 * i;
-      const imagePath = path.join(testImagesDir, imageFiles[j]);
+    // Apply start offset if specified
+    const startOffset = options.startOffset || 0;
+    if (startOffset > 0) {
       mainLogger.info(
-        `\n[${i + 1}/${imageFiles.length}] 🏎️ Processing image: ${
-          imageFiles[j]
+        `Starting from image ${startOffset} (skipping ${startOffset} images)`
+      );
+    }
+
+    // Determine how many frames to process
+    const maxFrames =
+      options.frames ||
+      Math.floor((imageFiles.length - startOffset) / skipFactor);
+    const framesToProcess = Math.min(
+      maxFrames,
+      Math.floor((imageFiles.length - startOffset) / skipFactor)
+    );
+    mainLogger.info(
+      `Will process ${framesToProcess} frames (every ${skipFactor}th frame)`
+    );
+
+    // Process each image in sequence with the specified skip factor
+    for (let i = 0; i < framesToProcess; i++) {
+      const frameIndex = startOffset + i * skipFactor;
+      const imagePath = path.join(testImagesDir, imageFiles[frameIndex]);
+      mainLogger.info(
+        `\n[${i + 1}/${framesToProcess}] 🏎️ Processing image: ${
+          imageFiles[frameIndex]
         }`
       );
 
@@ -435,7 +516,7 @@ async function main() {
       mainLogger.info("Recommended action:", JSON.stringify(action, null, 2));
 
       // Optional: Add a small delay between processing to avoid rate limits
-      if (j < imageFiles.length - 1) {
+      if (i < framesToProcess - 1) {
         mainLogger.debug("Waiting before processing next image...");
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -455,9 +536,19 @@ async function main() {
     );
 
     // Display pricing rates used for calculation
-    mainLogger.info(`   Prompt rate:       $${tokenUsage.pricing.promptRate.toFixed(4)}/1K tokens`);
-    mainLogger.info(`   Completion rate:   $${tokenUsage.pricing.completionRate.toFixed(4)}/1K tokens`);
-    mainLogger.info(`   Estimated cost:    $${tokenUsage.estimatedCost.toFixed(4)}`);
+    mainLogger.info(
+      `   Prompt rate:       $${tokenUsage.pricing.promptRate.toFixed(
+        4
+      )}/1K tokens`
+    );
+    mainLogger.info(
+      `   Completion rate:   $${tokenUsage.pricing.completionRate.toFixed(
+        4
+      )}/1K tokens`
+    );
+    mainLogger.info(
+      `   Estimated cost:    $${tokenUsage.estimatedCost.toFixed(4)}`
+    );
 
     mainLogger.info("\n✅ All images processed successfully");
   } catch (error) {
