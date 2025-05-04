@@ -2,6 +2,7 @@ import "dotenv/config";
 import * as path from "path";
 import * as fs from "fs";
 import BedrockService from "./services/bedrock";
+import PricingService, { TokenPricing } from "./services/pricing";
 import { Logger, LogLevel, getLogger } from "./utils/logger";
 
 /**
@@ -9,6 +10,7 @@ import { Logger, LogLevel, getLogger } from "./utils/logger";
  */
 class DeepRacerAgent {
   private bedrockService: BedrockService;
+  private pricingService: PricingService;
   private modelId: string;
   private imageCount: number = 0;
   private totalPromptTokens: number = 0;
@@ -27,6 +29,9 @@ class DeepRacerAgent {
 
     // Initialize the Bedrock service
     this.bedrockService = new BedrockService();
+    
+    // Initialize pricing service with AWS region from environment
+    this.pricingService = new PricingService(process.env.AWS_REGION || 'us-east-1');
 
     // Set model ID from options, env, or default
     this.modelId =
@@ -43,7 +48,9 @@ class DeepRacerAgent {
         `You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. ` +
           `Your job is to analyze track images from the car's perspective and suggest optimal actions. ` +
           `You should consider the track features, curves, and obstacles to make driving decisions. ` +
-          `You get 30 frames per second, so changes between frames should be small. ` +
+          `The car is a 1/18th scale model, so the speed and steering angles should be realistic for a small car. ` +
+          `The car has acker steering, so the steering angle should be between -20 and +20 degrees. ` +
+          `Full steering gives a turning radius of 0.5m, and the car can go up to 4 m/s. ` +
           `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. ` +
           `Positive steering angles turn the car left, negative steering angles turn the car right. ` +
           `Do not add + before any positive steering angle. ` +
@@ -54,6 +61,10 @@ class DeepRacerAgent {
     this.logger.info(
       `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
     );
+    
+    // Load pricing data for the model
+    this.pricingService.loadModelPricing(this.modelId)
+      .catch(error => this.logger.warn(`Failed to initialize pricing: ${error}`));
   }
 
   /**
@@ -307,18 +318,31 @@ class DeepRacerAgent {
   }
 
   /**
-   * Get the current token usage statistics
-   * @returns Object containing token usage data
+   * Get the current token usage statistics and cost estimation
+   * @returns Object containing token usage data and cost estimation
    */
   public getTokenUsage(): {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    estimatedCost: number;
+    pricing: TokenPricing;
   } {
+    // Get current pricing
+    const currentPricing = this.pricingService.getPricing();
+    
+    // Calculate costs using the pricing service
+    const costs = this.pricingService.calculateCost(
+      this.totalPromptTokens, 
+      this.totalCompletionTokens
+    );
+
     return {
       promptTokens: this.totalPromptTokens,
       completionTokens: this.totalCompletionTokens,
       totalTokens: this.totalPromptTokens + this.totalCompletionTokens,
+      estimatedCost: costs.totalCost,
+      pricing: currentPricing
     };
   }
 
@@ -339,8 +363,9 @@ class DeepRacerAgent {
   /**
    * Reset the agent's conversation history and token counts
    * @param resetTokens Whether to reset token tracking (default: false)
+   * @param refreshPricing Whether to refresh pricing data (default: false) 
    */
-  reset(resetTokens: boolean = false): void {
+  reset(resetTokens: boolean = false, refreshPricing: boolean = false): void {
     this.bedrockService.clearConversation();
     this.imageCount = 0;
 
@@ -350,6 +375,11 @@ class DeepRacerAgent {
       this.logger.info("🔄 DeepRacer agent reset (including token counts)");
     } else {
       this.logger.info("🔄 DeepRacer agent reset");
+    }
+
+    if (refreshPricing) {
+      this.pricingService.loadModelPricing(this.modelId)
+        .catch(error => this.logger.warn(`Failed to refresh pricing: ${error}`));
     }
   }
 }
@@ -392,11 +422,12 @@ async function main() {
     mainLogger.info(`Found ${imageFiles.length} images to process`);
 
     // Process each image in sequence
-    for (let i = 0; i < 2; i++) {
-      const imagePath = path.join(testImagesDir, imageFiles[i]);
+    for (let i = 0; i < 25; i++) {
+      const j = 2 * i;
+      const imagePath = path.join(testImagesDir, imageFiles[j]);
       mainLogger.info(
         `\n[${i + 1}/${imageFiles.length}] 🏎️ Processing image: ${
-          imageFiles[i]
+          imageFiles[j]
         }`
       );
 
@@ -404,13 +435,13 @@ async function main() {
       mainLogger.info("Recommended action:", JSON.stringify(action, null, 2));
 
       // Optional: Add a small delay between processing to avoid rate limits
-      if (i < imageFiles.length - 1) {
+      if (j < imageFiles.length - 1) {
         mainLogger.debug("Waiting before processing next image...");
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
 
-    // Log the total token usage
+    // Log the total token usage with accurate pricing
     const tokenUsage = agent.getTokenUsage();
     mainLogger.info("\n📈 Token Usage Summary:");
     mainLogger.info(
@@ -423,13 +454,10 @@ async function main() {
       `   Total tokens:      ${tokenUsage.totalTokens.toLocaleString()}`
     );
 
-    // Estimate cost (example rate for illustration)
-    const promptRate = 0.002 / 1000.0; // $0.002 per 1000 tokens
-    const completionRate = 0.006 / 1000.0; // $0.003 per 1000 tokens
-    const estimatedCost =
-      tokenUsage.promptTokens * promptRate +
-      tokenUsage.completionTokens * completionRate;
-    mainLogger.info(`   Estimated cost:    $${estimatedCost.toFixed(4)}`);
+    // Display pricing rates used for calculation
+    mainLogger.info(`   Prompt rate:       $${tokenUsage.pricing.promptRate.toFixed(4)}/1K tokens`);
+    mainLogger.info(`   Completion rate:   $${tokenUsage.pricing.completionRate.toFixed(4)}/1K tokens`);
+    mainLogger.info(`   Estimated cost:    $${tokenUsage.estimatedCost.toFixed(4)}`);
 
     mainLogger.info("\n✅ All images processed successfully");
   } catch (error) {
