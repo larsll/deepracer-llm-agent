@@ -1,24 +1,16 @@
-# Bedrock Image Processing
+# DeepRacer LLM Agent
 
-This project provides a set of tools for processing images and interacting with Amazon Bedrock. It includes functionality for uploading images, processing them, and handling responses from the Bedrock service.
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Features](#features)
-- [Contributing](#contributing)
-- [License](#license)
+This project implements a demonstrator agent based on Large Language Models (LLMs) for AWS DeepRacer. It enables intelligent decision-making for autonomous racing by leveraging language models to process visual inputs and generate optimal racing strategies.
 
 ## Installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/bedrock-image-processing.git
+   git clone https://github.com/larsll/deepracer-llm-agent.git
    ```
 2. Navigate to the project directory:
    ```
-   cd bedrock-image-processing
+   cd deepracer-llm-agent
    ```
 3. Install the dependencies:
    ```
@@ -31,18 +23,22 @@ This project provides a set of tools for processing images and interacting with 
 
 ## Usage
 
-To start the application, run:
+To start the agent, run:
 ```
-npm start
+npm agent
 ```
 
-You can use the provided services to upload and process images. Refer to the documentation in the `src/services/bedrock.ts` file for more details on available methods.
+The LLM agent will process track images from DeepRacer and make racing decisions. You can configure the agent parameters in the configuration files.
 
 ## Features
 
-- Upload images to Amazon Bedrock
-- Process images with various utility functions
-- Resize and convert image formats before uploading
+- Natural language processing for DeepRacer control using LLMs
+- Integration with AWS Bedrock for efficient model inferencing
+- Computer vision capabilities for track and obstacle detection
+- Adaptive decision-making based on race conditions
+- Reinforcement learning components to improve over time
+- Performance analytics and visualization tools
+- Customizable prompting strategies for different racing scenarios
 
 ## Contributing
 

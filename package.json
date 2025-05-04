@@ -1,12 +1,12 @@
 {
-  "name": "bedrock-image-processing",
+  "name": "deepracer-llm-agent",
   "version": "1.0.0",
   "description": "A project for processing images and interacting with Amazon Bedrock.",
   "main": "src/index.ts",
   "scripts": {
-    "start": "ts-node src/index.ts",
     "build": "tsc",
-    "setup": "bash scripts/setup.sh"
+    "setup": "bash scripts/setup.sh",
+    "start": "ts-node src/deepracer-agent.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.799.0",
@@ -18,6 +18,6 @@
   "devDependencies": {
     "@types/node": "^16.0.0"
   },
-  "author": "Your Name",
+  "author": "Lars Lorentz Ludvigsen",
   "license": "MIT"
 }
