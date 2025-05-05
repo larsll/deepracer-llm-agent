@@ -146,8 +146,11 @@ export abstract class BaseBedrockService {
       this.logger.debug(`Processing image with model: ${modelId}`);
       const timeout = parseInt(process.env.TIMEOUT_MS || "30000");
 
-      // Create payload based on model type
-      const payload = this.modelHandler.createPayload(base64Image, prompt);
+      // Create user message
+      const userMessage = this.modelHandler.createUserMessage(prompt, base64Image);
+
+      // Create payload based on model type - now using userMessage
+      const payload = this.modelHandler.createPayload(userMessage);
 
       // Create command for Bedrock
       const command = new InvokeModelCommand({
@@ -172,11 +175,10 @@ export abstract class BaseBedrockService {
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       this.logger.debug("Response received from Bedrock");
 
-      // Process the response with the model handler
+      // Process the response with the model handler - now using userMessage
       const parsedResponse = this.modelHandler.processResponse(
         responseBody,
-        prompt,
-        base64Image
+        userMessage
       );
 
       // Track token usage

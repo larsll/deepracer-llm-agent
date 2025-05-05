@@ -32,19 +32,24 @@ export interface IModelHandler {
   clearConversation(): void;
   
   /**
+   * Create user message
+   */
+  createUserMessage(prompt: string, base64Image: string): Message;
+  
+  /**
    * Create the API payload specific to this model type
    */
-  createPayload(base64Image: string, prompt: string): any;
+  createPayload(userMessage: Message): any;
   
   /**
    * Process and parse the response from the API
    */
-  processResponse(response: any, prompt: string, base64Image: string): any;
+  processResponse(response: any, userMessage: Message): any;
   
   /**
    * Extract driving action from response
    */
-  extractDrivingAction(response: any): any;
+  extractDrivingAction(response: any): DrivingAction;
   
   /**
    * Extract token usage from response in model-specific format

@@ -39,7 +39,24 @@ export class ClaudeModelHandler implements IModelHandler {
     this.conversationContext = [];
   }
 
-  createPayload(base64Image: string, prompt: string): any {
+  createUserMessage(prompt: string, base64Image: string): Message {
+    return {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: "image/jpeg",
+            data: base64Image,
+          },
+        },
+      ],
+    };
+  }
+
+  createPayload(userMessage: Message): any {
     if (this.is37Model) {
       // Claude 3.7 models require system prompt as a top-level parameter
       return {
@@ -49,20 +66,7 @@ export class ClaudeModelHandler implements IModelHandler {
           ...(this.conversationContext.length > 0 && this.maxContextMessages > 0
             ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: base64Image,
-                },
-              },
-            ],
-          },
+          userMessage
         ],
         max_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
       };
@@ -75,45 +79,18 @@ export class ClaudeModelHandler implements IModelHandler {
           ...(this.conversationContext.length > 0
             ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: base64Image,
-                },
-              },
-            ],
-          },
+          userMessage
         ],
         max_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
       };
     }
   }
 
-  processResponse(response: any, prompt: string, base64Image: string): any {
+  processResponse(response: any, userMessage: Message): any {
     // Add to conversation context if maintaining context
     if (this.maxContextMessages > 0) {
-      // Add user message to context
-      const userMessage: Message = {
-        role: "user",
-        content: [
-          { type: "text", text: prompt },
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: "image/jpeg",
-              data: base64Image,
-            },
-          },
-        ],
-      };
-
+      // Add user message to context - now using the passed userMessage
+      
       // Add assistant response to context
       const assistantMessage: Message = {
         role: "assistant",

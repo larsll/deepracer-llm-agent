@@ -33,7 +33,26 @@ export class NovaModelHandler implements IModelHandler {
     this.conversationContext = [];
   }
 
-  createPayload(base64Image: string, prompt: string): any {
+  createUserMessage(prompt: string, base64Image: string): Message {
+    return {
+      role: "user",
+      content: [
+        {
+          text: prompt,
+        },
+        {
+          image: {
+            format: "jpeg",
+            source: {
+              bytes: base64Image,
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  createPayload(userMessage: Message): any {
     // Amazon Nova models payload
     return {
       inferenceConfig: {
@@ -51,47 +70,14 @@ export class NovaModelHandler implements IModelHandler {
         ...(this.conversationContext.length > 0 && this.maxContextMessages > 0
           ? this.conversationContext.slice(-this.maxContextMessages * 2)
           : []),
-        {
-          role: "user",
-          content: [
-            {
-              text: prompt,
-            },
-            {
-              image: {
-                format: "jpeg",
-                source: {
-                  bytes: base64Image,
-                },
-              },
-            },
-          ],
-        },
+        userMessage,
       ],
     };
   }
 
-  processResponse(response: any, prompt: string, base64Image: string): any {
+  processResponse(response: any, userMessage: Message): any {
     // Add to conversation context if maintaining context
     if (this.maxContextMessages > 0) {
-      // Add user message
-      const userMessage: Message = {
-        role: "user",
-        content: [
-          {
-            text: prompt,
-          },
-          {
-            image: {
-              format: "jpeg",
-              source: {
-                bytes: base64Image,
-              },
-            },
-          },
-        ],
-      };
-
       // Add assistant message
       const assistantMessage: Message = {
         role: "assistant",
