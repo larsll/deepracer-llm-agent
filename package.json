@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "setup": "bash scripts/setup.sh",
-    "start": "ts-node src/deepracer-agent.ts"
+    "start": "ts-node src/index.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.799.0",
