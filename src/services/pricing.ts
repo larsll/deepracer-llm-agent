@@ -50,7 +50,7 @@ export class PricingService {
     const modelMapping: { [key: string]: string } = {
       "amazon.nova-lite": "Nova Lite",
       "amazon.nova-pro": "Nova Pro",
-      "anthropic.claude": "Claude",
+      "anthropic.claude-3-7-sonnet": "Claude 3 Sonnet",
       "mistral.pixtral-large": "Pixtral Large 25.02",
     };
 

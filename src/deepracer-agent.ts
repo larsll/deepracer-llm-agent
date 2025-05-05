@@ -14,8 +14,6 @@ class DeepRacerAgent {
   private pricingService: PricingService;
   private modelId: string;
   private imageCount: number = 0;
-  private totalPromptTokens: number = 0;
-  private totalCompletionTokens: number = 0;
   private logger: Logger;
   private maxContextMessages: number;
   private tokenLogger: TokenLogger;
@@ -69,17 +67,16 @@ class DeepRacerAgent {
     } else {
       this.bedrockService.setSystemPrompt(
         `You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. ` +
-          `Your job is to analyze track images from the car's perspective and suggest optimal actions. ` +
-          `You should consider the track features, curves, and obstacles to make driving decisions. ` +
-          `The car has ackermann steering geometry, so the steering angle should be between -20 and +20 degrees. ` +
-          `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. ` +
-          `Positive steering angles turn the car left, negative steering angles turn the car right. ` +
-          `The car will roll at speed, making the picture rotate. The actual track is flat. ` +
-          `The first pixel received is the top left corner of the image. ` +
-          `Do not add + before any positive steering angle. ` +
-          `Include short "reasoning" in your response to explain your decision. Document difference to previous image provided. ` +
-          `Include a field cotaining your current "knowledge", structuring what you have learned about driving the car. Review and update knowledge from previous iterations.` +
-          ``
+        `Your job is to analyze pictures looking at the track, looking forward out the window of the car. ` +
+        `You should consider the track features, curves both near and far, to make driving decisions. ` +
+        `The car has an Ackermann steering geometry. The steering angle should be between -20 and +20 degrees. ` +
+        `IMPORTANT STEERING CONVENTION: Positive steering angles (+1 to +20) turn the car LEFT, negative steering angles (-1 to -20) turn the car RIGHT. ` +
+        `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. Do not add + before any positive steering angle. ` + 
+        `The track is having white lines to the left and the right, and a dashed yellow centerline. ` +
+        `Include short "reasoning" in your response to explain your decision. ` +
+        // `Document difference to previous image provided. ` +
+        `Include a field cotaining your current "knowledge", structuring what you have learned about driving the car. Review and update knowledge from previous iterations.` +
+        ``
       );
     }
 
@@ -104,11 +101,11 @@ class DeepRacerAgent {
     this.imageCount++;
     this.logger.debug(`Processing image #${this.imageCount}...`);
 
-    let prompt = "Analyze this image from the DeepRacer car's camera.";
+    let prompt = `Analyze this image. This is image #${this.imageCount}.`;
     if (this.imageCount > 1 && this.maxContextMessages > 0) {
-      prompt += " Compare with previous image to interpret how you are moving.";
+      prompt += ` Compare with previous image to interpret how you are moving.`;
     } else {
-      prompt += " ";
+      prompt += "";
     }
 
     try {
@@ -127,6 +124,10 @@ class DeepRacerAgent {
       try {
         if (this.modelId.includes("claude")) {
           const content = response.content?.[0]?.text || "";
+          // For Claude 3.7 Sonnet, the response structure might be slightly different
+          // Log the raw response for debugging if needed
+          this.logger.debug("Raw Claude response:", JSON.stringify(response));
+          
           // Extract JSON from content - Claude often wraps it in ```json blocks
           const jsonMatch = content.match(
             /```json\s*(\{.*?\})\s*```|(\{.*?\})/s
@@ -345,8 +346,6 @@ class DeepRacerAgent {
     this.imageCount = 0;
 
     if (resetTokens) {
-      this.totalPromptTokens = 0;
-      this.totalCompletionTokens = 0;
       this.logger.info("🔄 DeepRacer agent reset (including token counts)");
     } else {
       this.logger.info("🔄 DeepRacer agent reset");

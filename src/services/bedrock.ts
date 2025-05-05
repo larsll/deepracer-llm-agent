@@ -4,13 +4,14 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import * as fs from "fs";
 import { Logger, LogLevel, getLogger } from "../utils/logger";
+const crypto = require("crypto");
 
 class BedrockService {
   private bedrockClient: BedrockRuntimeClient;
   private conversationContext: Array<any> = [];
   private systemPrompt: string | null = null;
   private logger: Logger;
-  private maxContextMessages: number = 2;
+  private maxContextMessages: number = 0;
 
   constructor(logLevel?: LogLevel) {
     // Initialize logger
@@ -65,9 +66,11 @@ class BedrockService {
   ): Promise<any> {
     // Convert image to base64
     const base64Image = imageBuffer.toString("base64");
-
+    const md5Hash = crypto.createHash("md5").update(base64Image).digest("hex");
+    this.logger.debug("Image MD5 hash: ", md5Hash);
     // Create request payload based on the model
     const payload = this.createPayloadForModel(modelId, base64Image, prompt);
+    //this.logger.debug("Payload created for model:", payload);
 
     // Invoke Bedrock model with timeout
     const command = new InvokeModelCommand({
@@ -94,6 +97,7 @@ class BedrockService {
 
       // Parse the response body
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      this.logger.debug("Response received from Bedrock:", responseBody);
 
       // Add to conversation context if maintaining context
       if (this.maxContextMessages > 0) {
@@ -145,7 +149,15 @@ class BedrockService {
 
         // Add assistant response to context
         let assistantMessage;
-        if (modelId.includes("claude")) {
+        if (modelId.includes("claude-3-7")) {
+          // For Claude 3.7, we need to handle the conversation context differently
+          // since it doesn't use system message in the messages array
+          assistantMessage = {
+            role: "assistant",
+            content:
+              responseBody.content?.[0]?.text || JSON.stringify(responseBody),
+          };
+        } else if (modelId.includes("claude")) {
           assistantMessage = {
             role: "assistant",
             content:
@@ -174,7 +186,7 @@ class BedrockService {
 
         // Replace entire context with just this exchange when maintaining context
         // This prevents accumulating too many messages
-        this.conversationContext = [userMessage, assistantMessage];
+        this.conversationContext.push(userMessage, assistantMessage);
 
         this.logger.debug(
           `Added to conversation context (${this.conversationContext.length} messages)`
@@ -245,15 +257,12 @@ class BedrockService {
     prompt: string
   ): any {
     // Store only the most recent exchange in this format rather than cumulative history
-    if (modelId.includes("claude")) {
-      // Claude models payload
+    if (modelId.includes("claude-3-7")) {
+      // Claude 3.7 models require system prompt as a top-level parameter
       return {
         anthropic_version: "bedrock-2023-05-31",
+        system: this.systemPrompt || "You are an AI driver assistant.",
         messages: [
-          {
-            role: "system",
-            content: this.systemPrompt || "You are an AI driver assistant.",
-          },
           ...(this.conversationContext.length > 0
             ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
@@ -301,10 +310,6 @@ class BedrockService {
       };
     } else if (modelId.includes("amazon.nova")) {
       // Amazon Nova models payload - Updated to match Nova Lite's expected format
-      const fullPrompt = this.systemPrompt
-        ? `${this.systemPrompt}\n\n${prompt}`
-        : prompt;
-
       return {
         inferenceConfig: {
           max_new_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
@@ -319,21 +324,14 @@ class BedrockService {
             ],
           },
           ...(this.conversationContext.length > 0
-            ? this.conversationContext
-                .slice(-this.maxContextMessages * 2)
-                .map((msg) => {
-                  // Ensure proper format for each message in context
-                  return {
-                    role: msg.role,
-                    content: Array.isArray(msg.content)
-                      ? msg.content
-                      : [{ text: msg.content }],
-                  };
-                })
+            ? this.conversationContext.slice(-this.maxContextMessages * 2)
             : []),
           {
             role: "user",
             content: [
+              {
+                text: prompt,
+              },
               {
                 image: {
                   format: "jpeg",
@@ -341,9 +339,6 @@ class BedrockService {
                     bytes: base64Image,
                   },
                 },
-              },
-              {
-                text: fullPrompt,
               },
             ],
           },
