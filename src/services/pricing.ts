@@ -47,42 +47,30 @@ export class PricingService {
    * @returns The standardized model name
    */
   private getModelName(modelId: string): string {
-    // Handle ARN format: arn:aws:bedrock:eu-central-1:XXX:inference-profile/eu.amazon.nova-lite-v1:0
+    const modelMapping: { [key: string]: string } = {
+      "amazon.nova-lite": "Nova Lite",
+      "amazon.nova-pro": "Nova Pro",
+      "anthropic.claude": "Claude",
+      "mistral.pixtral-large": "Pixtral Large 25.02",
+    };
+
+    // Extract model name from ARN if applicable
+    let modelName = "Unknown";
     if (modelId.includes("arn:aws:bedrock")) {
-      // Extract the model name from inference profile ARN
-      const arnParts = modelId.split("/");
-      if (arnParts.length > 1) {
-        const modelNamePart = arnParts[arnParts.length - 1];
-        // Handle possible version suffix with colon
-        const modelName = modelNamePart.split(":")[0];
+      modelName = modelId.split("/").pop()?.split(":")[0] || "";
+      this.logger.debug(`Extracted model name from ARN: ${modelName}`);
+    } else {
+      modelName = modelId;
+    }
 
-        this.logger.debug(`Extracted model name from ARN: ${modelName}`);
-
-        // Map the extracted model name to a model family
-        if (modelName.includes("amazon.nova-lite")) {
-          return "Nova Lite";
-        } else if (modelName.includes("amazon.nova-pro")) {
-          return "Nova Pro";
-        } else if (modelName.includes("anthropic.claude")) {
-          return "Claude";
-        } else if (modelName.includes("mistral.pixtral-large")) {
-          return "Pixtral Large 25.02";
-        }
+    // Match model ID directly
+    for (const key in modelMapping) {
+      if (modelName.includes(key)) {
+        return modelMapping[key];
       }
     }
 
-    // Original logic for non-ARN model IDs
-    if (modelId.includes("claude")) {
-      return "Claude";
-    } else if (modelId.includes("mistral.pixtral-large")) {
-      return "Pixtral Large 25.02";
-    } else if (modelId.includes("amazon.nova-lite")) {
-      return "Nova Lite";
-    } else if (modelId.includes("amazon.nova-pro")) {
-      return "Nova Pro";
-    }
-
-    return "Claude"; // Default to Claude as fallback
+    return "Unknown"; // Default fallback
   }
 
   /**
