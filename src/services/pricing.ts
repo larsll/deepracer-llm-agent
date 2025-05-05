@@ -47,7 +47,7 @@ export class PricingService {
    * @returns The standardized model name
    */
   private getModelName(modelId: string): string {
-    // Handle ARN format: arn:aws:bedrock:eu-central-1:180406016328:inference-profile/eu.amazon.nova-lite-v1:0
+    // Handle ARN format: arn:aws:bedrock:eu-central-1:XXX:inference-profile/eu.amazon.nova-lite-v1:0
     if (modelId.includes("arn:aws:bedrock")) {
       // Extract the model name from inference profile ARN
       const arnParts = modelId.split("/");

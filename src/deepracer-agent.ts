@@ -4,6 +4,7 @@ import * as fs from "fs";
 import BedrockService from "./services/bedrock";
 import PricingService, { TokenPricing } from "./services/pricing";
 import { Logger, LogLevel, getLogger } from "./utils/logger";
+import { TokenLogger } from "./utils/token-logger";
 
 /**
  * DeepRacer LLM Agent to process track images and make driving decisions
@@ -17,6 +18,7 @@ class DeepRacerAgent {
   private totalCompletionTokens: number = 0;
   private logger: Logger;
   private maxContextMessages: number;
+  private tokenLogger: TokenLogger;
 
   constructor(
     options: {
@@ -28,6 +30,9 @@ class DeepRacerAgent {
   ) {
     // Initialize logger
     this.logger = getLogger("DeepRacer", options.logLevel);
+
+    // Initialize token logger
+    this.tokenLogger = new TokenLogger(this.logger);
 
     // Initialize the Bedrock service
     this.bedrockService = new BedrockService();
@@ -100,11 +105,10 @@ class DeepRacerAgent {
     this.logger.debug(`Processing image #${this.imageCount}...`);
 
     let prompt = "Analyze this image from the DeepRacer car's camera.";
-    if (this.imageCount > 1) {
+    if (this.imageCount > 1 && this.maxContextMessages > 0) {
       prompt += " Compare with previous image to interpret how you are moving.";
     } else {
-      prompt +=
-        " This is the first image.";
+      prompt += " ";
     }
 
     try {
@@ -285,57 +289,7 @@ class DeepRacerAgent {
    * @param response The response from the API call
    */
   private trackTokenUsage(response: any): void {
-    if (!response) return;
-
-    try {
-      // Different models return token counts in different formats
-      if (response.usage) {
-        if (response.usage.inputTokens !== undefined) {
-          // Amazon Nova format
-          const promptTokens = response.usage.inputTokens || 0;
-          const completionTokens = response.usage.outputTokens || 0;
-
-          this.totalPromptTokens += promptTokens;
-          this.totalCompletionTokens += completionTokens;
-
-          this.logger.debug(
-            `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
-              promptTokens + completionTokens
-            }`
-          );
-        } else {
-          // Mistral/Pixtral format
-          const promptTokens = response.usage.prompt_tokens || 0;
-          const completionTokens = response.usage.completion_tokens || 0;
-
-          this.totalPromptTokens += promptTokens;
-          this.totalCompletionTokens += completionTokens;
-
-          this.logger.debug(
-            `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
-              promptTokens + completionTokens
-            }`
-          );
-        }
-      } else if (response.usage_metadata) {
-        // Claude format
-        const promptTokens = response.usage_metadata.input_tokens || 0;
-        const completionTokens = response.usage_metadata.output_tokens || 0;
-
-        this.totalPromptTokens += promptTokens;
-        this.totalCompletionTokens += completionTokens;
-
-        this.logger.debug(
-          `Tokens - Prompt: ${promptTokens}, Completion: ${completionTokens}, Total: ${
-            promptTokens + completionTokens
-          }`
-        );
-      } else {
-        this.logger.debug(`Token usage data not available for this response`);
-      }
-    } catch (error) {
-      this.logger.warn("Error tracking token usage:", error);
-    }
+    this.tokenLogger.trackTokenUsage(response);
   }
 
   /**
@@ -349,19 +303,19 @@ class DeepRacerAgent {
     estimatedCost: number;
     pricing: TokenPricing;
   } {
+    const tokenUsage = this.tokenLogger.getTokenUsage();
+
     // Get current pricing
     const currentPricing = this.pricingService.getPricing();
 
     // Calculate costs using the pricing service
     const costs = this.pricingService.calculateCost(
-      this.totalPromptTokens,
-      this.totalCompletionTokens
+      tokenUsage.promptTokens,
+      tokenUsage.completionTokens
     );
 
     return {
-      promptTokens: this.totalPromptTokens,
-      completionTokens: this.totalCompletionTokens,
-      totalTokens: this.totalPromptTokens + this.totalCompletionTokens,
+      ...tokenUsage,
       estimatedCost: costs.totalCost,
       pricing: currentPricing,
     };
