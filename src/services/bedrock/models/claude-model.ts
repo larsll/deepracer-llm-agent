@@ -6,6 +6,7 @@ import {
   DrivingAction,
   TokenUsageData,
 } from "../types/bedrock-types";
+import { extractJsonFromLlmResponse } from "../../../utils/json-extractor";
 
 export class ClaudeModelHandler implements IModelHandler {
   private systemPrompt: string = "You are an AI driver assistant.";
@@ -146,32 +147,20 @@ export class ClaudeModelHandler implements IModelHandler {
   }
 
   extractDrivingAction(response: any): DrivingAction {
-    const content = response.content?.[0]?.text || "";
-    this.logger.debug(
-      "Raw Claude response content:",
-      content.substring(0, 200)
-    );
-
-    // Try to extract JSON from content - either from code blocks or directly
-    try {
-      // First try to find JSON in code blocks
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/);
-      
-      if (jsonMatch) {
-        // Parse JSON from code block
-        const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
-        this.logger.debug("Extracted JSON from formatted block");
-        return JSON.parse(jsonString);
-      }
-      
-      // If no code block found, try parsing the entire content
-      this.logger.debug("Attempting to parse entire content as JSON");
-      return JSON.parse(content.trim());
-      
-    } catch (error) {
-      this.logger.error("Failed to parse Claude response as JSON:", error);
-      this.logger.debug("Raw content:", content);
-      throw new Error("No valid JSON found in Claude response");
+    if (response.content && response.content.length > 0) {
+      const content = response.content[0]?.text || "";
+      this.logger.debug("Extracting driving action from Claude response");
+      return extractJsonFromLlmResponse<DrivingAction>(
+        content,
+        this.logger,
+        "Claude"
+      );
+    } else {
+      this.logger.error(
+        "Unexpected Claude response structure:",
+        JSON.stringify(response).substring(0, 200)
+      );
+      throw new Error("Unexpected Claude response structure");
     }
   }
 

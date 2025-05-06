@@ -83,7 +83,7 @@ async function main() {
       );
 
       const action = await agent.processImageFile(imagePath);
-      mainLogger.info("Recommended action:", JSON.stringify(action, null, 2));
+      mainLogger.info("🛞 Action to take:", JSON.stringify(action, null, 2));
 
       // Optional: Add a small delay between processing to avoid rate limits
       if (i < framesToProcess - 1) {

@@ -6,6 +6,7 @@ import {
   DrivingAction,
   TokenUsageData,
 } from "../types/bedrock-types";
+import { extractJsonFromLlmResponse } from "../../../utils/json-extractor";
 
 export class MistralModelHandler implements IModelHandler {
   private systemPrompt: string = "You are an AI driver assistant.";
@@ -114,31 +115,11 @@ export class MistralModelHandler implements IModelHandler {
   extractDrivingAction(response: any): DrivingAction {
     if (response.choices && response.choices[0]?.message?.content) {
       const content = response.choices[0].message.content;
-      this.logger.debug(
-        "Raw content from Mistral model:",
-        content.substring(0, 200)
+      return extractJsonFromLlmResponse<DrivingAction>(
+        content,
+        this.logger,
+        "Mistral"
       );
-
-      // Try to extract JSON from content - either from code blocks or directly
-      try {
-        // First try to find JSON in code blocks
-        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/);
-        
-        if (jsonMatch) {
-          // Parse JSON from code block
-          const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
-          this.logger.debug("Extracted JSON from formatted block");
-          return JSON.parse(jsonString);
-        }
-        
-        // If no code block found, try parsing the entire content
-        this.logger.debug("Attempting to parse entire content as JSON");
-        return JSON.parse(content.trim());
-        
-      } catch (error) {
-        this.logger.error("Failed to parse Mistral response as JSON:", error);
-        throw new Error("No valid JSON found in Mistral response");
-      }
     } else {
       this.logger.error(
         "Unexpected Mistral response structure:",
