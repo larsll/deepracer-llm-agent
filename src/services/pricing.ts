@@ -1,5 +1,7 @@
 import { PricingClient, GetProductsCommand } from "@aws-sdk/client-pricing";
 import { Logger, getLogger } from "../utils/logger";
+import awsConfig from "../utils/aws-config";
+import { AwsCredentialIdentity, AwsCredentialIdentityProvider } from "@aws-sdk/types";
 
 // Define interface for token pricing
 export interface TokenPricing {
@@ -23,11 +25,19 @@ export class PricingService {
   // Current pricing for the model
   private currentPricing: TokenPricing;
 
-  constructor(region: string = "us-east-1") {
+  constructor(region?: string) {
     this.logger = getLogger("PricingService");
 
-    // Initialize pricing client with the specified region
-    this.pricingClient = new PricingClient({ region });
+    // Hard-coded as pricing is only in us-east-1
+    const clientRegion = "us-east-1";
+    
+    // Initialize pricing client with the configured region and credentials
+    this.pricingClient = new PricingClient({
+      region: clientRegion,
+      credentials: awsConfig.credentials as AwsCredentialIdentity | AwsCredentialIdentityProvider
+    });
+
+    this.logger.debug(`Initialized pricing client with region: ${clientRegion}`);
 
     // Initialize with default pricing
     this.currentPricing = { ...this.defaultPricing };

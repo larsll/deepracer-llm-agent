@@ -1,9 +1,11 @@
 import {
   BedrockRuntimeClient,
+  BedrockRuntimeClientConfig,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 import { Logger, LogLevel, getLogger } from "../../utils/logger";
 import { IModelHandler, TokenUsageData } from "./types/bedrock-types";
+import awsConfig from "../../utils/aws-config";
 
 /**
  * Base Bedrock service with core functionality
@@ -25,17 +27,11 @@ export abstract class BaseBedrockService {
     // Initialize logger
     this.logger = getLogger("Bedrock", logLevel);
 
-    // Use credentials from .env file (loaded by dotenv)
-    this.bedrockClient = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-      },
-    });
+    // Use credentials from aws-config
+    this.bedrockClient = new BedrockRuntimeClient(awsConfig as BedrockRuntimeClientConfig);
 
     this.logger.info(
-      `Initialized Bedrock client for region: ${process.env.AWS_REGION}`
+      `Initialized Bedrock client for region: ${awsConfig.region}`
     );
   }
 
@@ -144,6 +140,7 @@ export abstract class BaseBedrockService {
 
     try {
       this.logger.debug(`Processing image with model: ${modelId}`);
+      // Use timeout from config or default
       const timeout = parseInt(process.env.TIMEOUT_MS || "30000");
 
       // Create user message
