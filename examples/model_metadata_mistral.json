@@ -29,7 +29,7 @@
             "Review and update knowledge from previous iterations."
         ],
         "repeated_prompt": "Analyze the image and provide a driving command.",
-        "context_window": 5
+        "context_window": 2
     },
     "action_space_type": "continuous",
     "version": "5"
