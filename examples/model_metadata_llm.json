@@ -1,0 +1,25 @@
+{
+    "action_space": {
+        "speed": {
+            "high": 2,
+            "low": 1
+        },
+        "steering_angle": {
+            "high": 30,
+            "low": -30
+        }
+    },
+    "sensor": [
+        "FRONT_FACING_CAMERA"
+    ],
+    "neural_network": "LLM",
+    "llm_config": {
+        "model_id": "arn:aws:bedrock:eu-central-1:180406016328:inference-profile/eu.mistral.pixtral-large-2502-v1:0",
+        "max_tokens": 1000,
+        "system_prompt": "You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. Your job is to analyze pictures looking at the track, looking forward out the window of the car. You should consider the track features, curves both near and far, to make driving decisions. The car has an Ackermann steering geometry. The steering angle should be between -20 and +20 degrees. IMPORTANT STEERING CONVENTION: Positive steering angles (+1 to +20) turn the car LEFT, negative steering angles (-1 to -20) turn the car RIGHT. Always provide output in JSON format with \"speed\" (1-4 m/s) and \"steering_angle\" (-20 to +20 degrees) as floats. Do not add + before any positive steering angle. The track is having white lines to the left and the right, and a dashed yellow centerline. Include short \"reasoning\" in your response to explain your decision. Include a field containing your current \"knowledge\", structuring what you have learned about driving the car. Review and update knowledge from previous iterations.",
+        "repeated_prompt": "Analyze the image and provide a driving command.",
+        "context_window": 5
+    },
+    "action_space_type": "continuous",
+    "version": "5"
+}
