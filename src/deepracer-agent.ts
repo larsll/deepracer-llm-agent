@@ -44,10 +44,8 @@ class DeepRacerAgent {
     // Load model metadata
     const metadataPath = options.metadataFilePath || "";
     this.loadModelMetadata(metadataPath);
-
   }
 
-  
   /**
    * Load model metadata and initialize the agent's configuration
    * @param filePath Path to the model metadata file
@@ -120,7 +118,11 @@ class DeepRacerAgent {
     }
 
     // Set system prompt
-    this.bedrockService.setSystemPrompt(llmConfig.system_prompt);
+    if (Array.isArray(llmConfig.system_prompt)) {
+      this.bedrockService.setSystemPrompt(llmConfig.system_prompt.join("\n"));
+    } else {
+      this.bedrockService.setSystemPrompt(llmConfig.system_prompt);
+    }
   }
 
   /**

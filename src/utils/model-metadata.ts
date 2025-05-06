@@ -71,7 +71,7 @@ export enum SensorType {
 export interface LLMConfig {
   model_id: string;
   max_tokens: number;
-  system_prompt: string;
+  system_prompt: string | string[];
   repeated_prompt: string;
   context_window: number;
 }
@@ -186,12 +186,11 @@ export class ModelMetadataHandler {
         throw new Error("Missing or invalid max_tokens in llm_config");
       }
 
-      if (typeof llmConfig.system_prompt !== "string") {
-        throw new Error("Missing system_prompt in llm_config");
-      }
-
-      if (typeof llmConfig.repeated_prompt !== "string") {
-        throw new Error("Missing repeated_prompt in llm_config");
+      if (
+        typeof llmConfig.system_prompt !== "string" &&
+        !Array.isArray(llmConfig.system_prompt)
+      ) {
+        throw new Error("Missing or invalid system_prompt in llm_config");
       }
 
       if (
