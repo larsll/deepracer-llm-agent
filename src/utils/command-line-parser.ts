@@ -7,7 +7,7 @@ export interface CommandLineOptions {
   frames?: number;
   skipFactor?: number;
   startOffset?: number;
-  maxContextMessages?: number;
+  metadataFilePath?: string;
 }
 
 /**
@@ -43,10 +43,10 @@ export function parseCommandLineArgs(
         log.error("Invalid value for --start. Must be a non-negative integer.");
         return null;
       }
-    } else if (args[i] === "--context" || args[i] === "-c") {
-      options.maxContextMessages = parseInt(args[++i], 10);
-      if (isNaN(options.maxContextMessages) || options.maxContextMessages < 0) {
-        log.error("Invalid value for --context. Must be a non-negative integer.");
+    } else if (args[i] === "--config" || args[i] === "-c") {
+      options.metadataFilePath = args[++i].trim();
+      if (typeof options.metadataFilePath !== "string" || options.metadataFilePath.length === 0) {
+        log.error("Invalid value for --config. Must be a non-empty string.");
         return null;
       }
     } else if (args[i] === "--help" || args[i] === "-h") {

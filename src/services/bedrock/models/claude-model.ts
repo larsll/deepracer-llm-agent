@@ -1,4 +1,5 @@
 import { Logger, getLogger } from "../../../utils/logger";
+import { ActionSpace, ActionSpaceType } from "../../../utils/model-metadata";
 import {
   IModelHandler,
   Message,
@@ -12,6 +13,8 @@ export class ClaudeModelHandler implements IModelHandler {
   private conversationContext: Message[] = [];
   private logger: Logger;
   private is37Model: boolean;
+  private actionSpace?: ActionSpace;
+  private actionSpaceType?: ActionSpaceType;
 
   constructor(modelId: string) {
     this.logger = getLogger("Claude");
@@ -33,6 +36,14 @@ export class ClaudeModelHandler implements IModelHandler {
 
   setMaxContextMessages(max: number): void {
     this.maxContextMessages = max;
+  }
+
+  setActionSpace(actionSpace: ActionSpace): void {
+    this.actionSpace = actionSpace;
+  }
+
+  setActionSpaceType(actionSpaceType: ActionSpaceType): void {
+    this.actionSpaceType = actionSpaceType;
   }
 
   clearConversation(): void {
@@ -63,10 +74,22 @@ export class ClaudeModelHandler implements IModelHandler {
         anthropic_version: "bedrock-2023-05-31",
         system: this.systemPrompt,
         messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  action_space_type: this.actionSpaceType,
+                  action_space: this.actionSpace,
+                }),
+              },
+            ],
+          },
           ...(this.conversationContext.length > 0 && this.maxContextMessages > 0
-            ? this.conversationContext.slice(-this.maxContextMessages * 2)
+            ? this.conversationContext.slice(-this.maxContextMessages)
             : []),
-          userMessage
+          userMessage,
         ],
         max_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
       };
@@ -76,10 +99,22 @@ export class ClaudeModelHandler implements IModelHandler {
         anthropic_version: "bedrock-2023-05-31",
         system: this.systemPrompt,
         messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  action_space_type: this.actionSpaceType,
+                  action_space: this.actionSpace,
+                }),
+              },
+            ],
+          },
           ...(this.conversationContext.length > 0
-            ? this.conversationContext.slice(-this.maxContextMessages * 2)
+            ? this.conversationContext.slice(-this.maxContextMessages)
             : []),
-          userMessage
+          userMessage,
         ],
         max_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
       };
@@ -90,7 +125,7 @@ export class ClaudeModelHandler implements IModelHandler {
     // Add to conversation context if maintaining context
     if (this.maxContextMessages > 0) {
       // Add user message to context - now using the passed userMessage
-      
+
       // Add assistant response to context
       const assistantMessage: Message = {
         role: "assistant",
@@ -102,7 +137,7 @@ export class ClaudeModelHandler implements IModelHandler {
       // Limit context length if needed
       if (this.maxContextMessages > 0) {
         this.conversationContext = this.conversationContext.slice(
-          -this.maxContextMessages * 2
+          -this.maxContextMessages
         );
       }
     }
@@ -118,7 +153,9 @@ export class ClaudeModelHandler implements IModelHandler {
     );
 
     // Extract JSON from content - Claude often wraps it in ```json blocks
-    const jsonMatch = content.match(/```json\s*(\{.*?\})\s*```|(\{.*?\})/s);
+    const jsonMatch = content.match(
+      /```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/
+    );
 
     if (jsonMatch) {
       const jsonString = jsonMatch[1] || jsonMatch[2];

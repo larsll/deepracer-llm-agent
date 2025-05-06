@@ -1,10 +1,14 @@
 import "dotenv/config";
-import * as path from "path";
 import * as fs from "fs";
 import BedrockService from "./services/bedrock";
 import PricingService, { TokenPricing } from "./services/pricing";
 import { Logger, LogLevel, getLogger } from "./utils/logger";
-import { ModelFactory } from "./services/bedrock/models/model-factory";
+import {
+  ModelMetadata,
+  modelMetadata as metadataHandler,
+  ActionSpaceType,
+  LLMConfig,
+} from "./utils/model-metadata";
 
 /**
  * DeepRacer LLM Agent to process track images and make driving decisions
@@ -12,64 +16,34 @@ import { ModelFactory } from "./services/bedrock/models/model-factory";
 class DeepRacerAgent {
   private bedrockService: BedrockService;
   private pricingService: PricingService;
-  private modelId: string;
+  private modelId: string = "";
   private imageCount: number = 0;
   private logger: Logger;
-  private maxContextMessages: number;
+  private maxContextMessages: number = 0;
+  private metadata?: ModelMetadata;
 
   constructor(
     options: {
-      modelId?: string;
-      systemPrompt?: string;
+      metadataFilePath?: string;
       logLevel?: LogLevel;
-      maxContextMessages?: number;
     } = {}
   ) {
     // Initialize logger
     this.logger = getLogger("DeepRacer", options.logLevel);
-    
-    // Initialize the Bedrock service
-    this.bedrockService = new BedrockService(options.logLevel);
 
     // Initialize pricing service with AWS region from environment
     this.pricingService = new PricingService(
       process.env.AWS_REGION || "us-east-1"
     );
 
-    // Set model ID from options, env, or default
-    this.modelId =
-      options.modelId ||
-      process.env.INFERENCE_PROFILE_ARN ||
-      process.env.DEFAULT_MODEL_ID ||
-      "";
+    // Load model metadata
+    this.loadModelMetadata(options.metadataFilePath || "");
 
-    // Set maximum context messages to keep
-    this.maxContextMessages =
-      options.maxContextMessages ||
-      (process.env.MAX_CONTEXT_MESSAGES
-        ? parseInt(process.env.MAX_CONTEXT_MESSAGES)
-        : 0);
-
-    if (this.maxContextMessages > 0) {
-      this.logger.info(
-        `Context memory limited to last ${this.maxContextMessages} messages`
-      );
-      this.bedrockService.setMaxContextMessages(this.maxContextMessages);
-    }
-
-    // Set system prompt if provided
-    const systemPrompt = options.systemPrompt || 
-      `You are an AI driver assistant acting like a Rally navigator for an AWS DeepRacer 1/18th scale car. ` +
-      `Your job is to analyze pictures looking at the track, looking forward out the window of the car. ` +
-      `You should consider the track features, curves both near and far, to make driving decisions. ` +
-      `The car has an Ackermann steering geometry. The steering angle should be between -20 and +20 degrees. ` +
-      `IMPORTANT STEERING CONVENTION: Positive steering angles (+1 to +20) turn the car LEFT, negative steering angles (-1 to -20) turn the car RIGHT. ` +
-      `Always provide output in JSON format with "speed" (1-4 m/s) and "steering_angle" (-20 to +20 degrees) as floats. Do not add + before any positive steering angle. ` + 
-      `The track is having white lines to the left and the right, and a dashed yellow centerline. ` +
-      `Include short "reasoning" in your response to explain your decision. ` +
-      `Include a field containing your current "knowledge", structuring what you have learned about driving the car. Review and update knowledge from previous iterations.`;
-    
-    this.bedrockService.setSystemPrompt(systemPrompt);
+    // Initialize BedrockService with metadata in a single step
+    this.bedrockService = new BedrockService({
+      metadata: this.metadata,
+      logLevel: options.logLevel,
+    });
 
     this.logger.info(
       `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
@@ -77,10 +51,70 @@ class DeepRacerAgent {
 
     // Load pricing data for the model
     this.pricingService
-      .loadModelPricing(this.modelId)
+      .loadModelPricing(this.modelId || "")
       .catch((error) =>
         this.logger.warn(`Failed to initialize pricing: ${error}`)
       );
+  }
+
+  /**
+   * Load model metadata and initialize the agent's configuration
+   * @param filePath Path to the model metadata file
+   */
+  private loadModelMetadata(filePath: string) {
+    try {
+      // Load and validate model metadata
+      this.metadata = metadataHandler.loadModelMetadata(filePath);
+      this.logger.debug("Model metadata loaded successfully:", this.metadata);
+
+      // Check if we're using an LLM model
+      if (metadataHandler.isLLMModel()) {
+        if (!metadataHandler.getLLMConfig()) {
+          throw new Error("LLM configuration missing");
+        }
+
+        // Extract the model ID for this agent
+        this.setupAgentConfiguration(this.metadata);
+      } else {
+        throw new Error(`🚗 DeepRacer Agent only works with LLM models.`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to initialize agent with model metadata: ${error}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Configure the agent with settings from metadata
+   * @param metadata The model metadata
+   */
+  private setupAgentConfiguration(metadata: ModelMetadata): void {
+    const llmConfig = metadata.llm_config;
+    if (!llmConfig) {
+      throw new Error("LLM configuration missing");
+    }
+
+    // Set model ID from LLM config, with fallback to environment variables
+    this.modelId =
+      llmConfig.model_id ||
+      process.env.INFERENCE_PROFILE_ARN ||
+      process.env.DEFAULT_MODEL_ID ||
+      "";
+
+    if (!this.modelId) {
+      throw new Error("No model ID specified in LLM config or environment");
+    }
+
+    // Store maximum context messages for the agent's own reference
+    this.maxContextMessages = llmConfig.context_window || 0;
+
+    if (this.maxContextMessages > 0) {
+      this.logger.info(
+        `Context memory limited to last ${this.maxContextMessages} messages`
+      );
+    }
   }
 
   /**
@@ -89,35 +123,52 @@ class DeepRacerAgent {
    * @returns Promise resolving to a recommended driving action
    */
   async processImage(imageBuffer: Buffer): Promise<any> {
+    // Check if we have loaded metadata
+    if (!this.metadata) {
+      throw new Error("Model metadata not loaded");
+    }
+
+    // Check if we're using an LLM model
+    if (!metadataHandler.isLLMModel()) {
+      throw new Error("This method only supports LLM models");
+    }
+
+    const llmConfig = metadataHandler.getLLMConfig();
+    if (!llmConfig) {
+      throw new Error("LLM configuration missing");
+    }
+
     this.imageCount++;
     this.logger.debug(`Processing image #${this.imageCount}...`);
 
-    let prompt = `Analyze this image. This is image #${this.imageCount}.`;
+    // Use the repeated prompt from the LLM config
+    let prompt =
+      llmConfig.repeated_prompt ||
+      `Analyze this image. This is image #${this.imageCount}.`;
+
     if (this.imageCount > 1 && this.maxContextMessages > 0) {
       prompt += ` Compare with previous image to interpret how you are moving.`;
     }
 
     try {
-      const response = await this.bedrockService.processImageSync(
+      const drivingAction = await this.bedrockService.processImageSync(
         imageBuffer,
-        this.modelId,
         prompt
       );
 
-      // Token usage is now tracked inside the BedrockService
-      // No need to explicitly track it here
-
       try {
-        // Extract driving action using model-specific handler
-        const drivingAction = this.bedrockService.extractDrivingAction(response);
-        
+        this.logger.info("Extracted driving action:", drivingAction);
+
         // Validate the driving action
         if (
           drivingAction.speed === undefined ||
           drivingAction.steering_angle === undefined
         ) {
           this.logger.warn("Missing required driving parameters in response:");
-          this.logger.warn("Raw response:", JSON.stringify(response, null, 2));
+          this.logger.warn(
+            "Raw response:",
+            JSON.stringify(drivingAction, null, 2)
+          );
 
           // Provide default values for missing parameters
           if (!drivingAction.speed) drivingAction.speed = 1.0; // Safe default speed
@@ -128,10 +179,13 @@ class DeepRacerAgent {
           drivingAction.error = "Missing required parameters in response";
         }
 
-        return drivingAction;
+        // Normalize the action according to our action space limits
+        return metadataHandler.normalizeAction(
+          drivingAction.steering_angle,
+          drivingAction.speed
+        );
       } catch (parseError) {
         this.logger.error("Failed to parse driving action:", parseError);
-        this.logger.debug("Raw response:", JSON.stringify(response, null, 2));
         throw new Error("Failed to parse driving action from LLM response");
       }
     } catch (error) {
@@ -199,7 +253,7 @@ class DeepRacerAgent {
       this.logger.info("🔄 DeepRacer agent reset");
     }
 
-    if (refreshPricing) {
+    if (refreshPricing && metadataHandler.isLLMModel()) {
       this.pricingService
         .loadModelPricing(this.modelId)
         .catch((error) =>

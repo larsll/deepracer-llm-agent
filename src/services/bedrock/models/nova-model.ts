@@ -1,4 +1,5 @@
 import { Logger, getLogger } from "../../../utils/logger";
+import { ActionSpace, ActionSpaceType } from "../../../utils/model-metadata";
 import {
   IModelHandler,
   Message,
@@ -11,6 +12,8 @@ export class NovaModelHandler implements IModelHandler {
   private maxContextMessages: number = 0;
   private conversationContext: Message[] = [];
   private logger: Logger;
+  private actionSpace?: ActionSpace;
+  private actionSpaceType?: ActionSpaceType;
 
   constructor() {
     this.logger = getLogger("Nova");
@@ -27,6 +30,14 @@ export class NovaModelHandler implements IModelHandler {
 
   setMaxContextMessages(max: number): void {
     this.maxContextMessages = max;
+  }
+
+  setActionSpace(actionSpace: ActionSpace): void {
+    this.actionSpace = actionSpace;
+  }
+
+  setActionSpaceType(actionSpaceType: ActionSpaceType): void {
+    this.actionSpaceType = actionSpaceType;
   }
 
   clearConversation(): void {
@@ -65,10 +76,16 @@ export class NovaModelHandler implements IModelHandler {
             {
               text: this.systemPrompt,
             },
+            {
+              text: JSON.stringify({
+                action_space_type: this.actionSpaceType,
+                action_space: this.actionSpace,
+              }),
+            },
           ],
         },
         ...(this.conversationContext.length > 0 && this.maxContextMessages > 0
-          ? this.conversationContext.slice(-this.maxContextMessages * 2)
+          ? this.conversationContext.slice(-this.maxContextMessages)
           : []),
         userMessage,
       ],
@@ -95,7 +112,7 @@ export class NovaModelHandler implements IModelHandler {
       // Limit context length if needed
       if (this.maxContextMessages > 0) {
         this.conversationContext = this.conversationContext.slice(
-          -this.maxContextMessages * 2
+          -this.maxContextMessages
         );
       }
     }

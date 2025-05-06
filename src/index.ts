@@ -14,7 +14,7 @@ async function main() {
   // Parse command line arguments
   const args = process.argv.slice(2);
   const options = parseCommandLineArgs(args, mainLogger);
-  
+
   // If options is null, either help was requested or there was an error
   if (options === null) {
     return;
@@ -29,9 +29,11 @@ async function main() {
     ? LogLevel[process.env.LOG_LEVEL.toUpperCase() as keyof typeof LogLevel] ||
       LogLevel.INFO
     : LogLevel.INFO;
+  
+  // Create the main Agent class
   const agent = new DeepRacerAgent({
     logLevel,
-    maxContextMessages: options.maxContextMessages,
+    metadataFilePath: options.metadataFilePath,
   });
 
   try {
