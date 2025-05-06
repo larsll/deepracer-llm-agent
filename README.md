@@ -1,16 +1,16 @@
 # DeepRacer LLM Agent
 
-This project implements a demonstrator agent based on Large Language Models (LLMs) for AWS DeepRacer. It enables intelligent decision-making for autonomous racing by leveraging language models to process visual inputs and generate optimal racing strategies.
+This code implements a DeepRacer agent that processes track images using Large Language Models (LLMs) through AWS Bedrock. The agent takes camera images from a DeepRacer car, converts them to base64, and sends them to an LLM (Claude, Mistral, or Nova) along with a structured prompt and action space information. For each image, the LLM receives: 
+1) a system prompt describing its role as a driving assistant, 
+2) the action space configuration (continuous or discrete steering/speed ranges), 
+3) the camera image itself, and 
+4) a request to analyze the image and make driving decisions. 
 
-## Features
-
-- Natural language processing for DeepRacer control using LLMs
-- Integration with AWS Bedrock for efficient model inferencing
-- Computer vision capabilities for track and obstacle detection
-- Adaptive decision-making based on race conditions
-- Configurable context window to provide the LLM with prior knowledge
+The LLM responds with JSON containing recommended steering angle and speed values, along with reasoning for its decision. The code handles all AWS service integration, maintains conversation context between frames, validates responses, and tracks token usage and costs. It's essentially creating a vision-language model based autonomous driving agent that can explain its decisions.
 
 ## Installation
+
+### Local Setup
 
 1. Clone the repository:
    ```
@@ -28,6 +28,12 @@ This project implements a demonstrator agent based on Large Language Models (LLM
    ```
    cp .env.example .env
    ```
+
+### AWS Configuration
+
+The setup requires two things:
+ 1. AWS credentials that allows to execute Bedrock API calls.
+ 2. Enabled models (currently Claude, Mistral and Nova are supported) in the right region.
 
 ## Usage
 
