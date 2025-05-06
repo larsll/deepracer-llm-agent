@@ -477,6 +477,21 @@ export class ModelMetadataHandler {
       const continuousSpace = this.metadata
         .action_space as ContinuousActionSpace;
 
+      // Check if values exceed the valid ranges and log warnings
+      if (steeringAngle < continuousSpace.steering_angle.low || 
+          steeringAngle > continuousSpace.steering_angle.high) {
+        this.logger.warn(
+          `Steering angle ${steeringAngle} exceeds valid range [${continuousSpace.steering_angle.low}, ${continuousSpace.steering_angle.high}]`
+        );
+      }
+
+      if (speed < continuousSpace.speed.low || 
+          speed > continuousSpace.speed.high) {
+        this.logger.warn(
+          `Speed ${speed} exceeds valid range [${continuousSpace.speed.low}, ${continuousSpace.speed.high}]`
+        );
+      }
+
       // Clamp values to the valid ranges
       const normalizedSteeringAngle = Math.max(
         continuousSpace.steering_angle.low,
@@ -493,6 +508,18 @@ export class ModelMetadataHandler {
         speed: normalizedSpeed,
       };
     } else {
+      // For discrete action spaces, log a warning if the requested action is not exact
+      const discreteActions = this.metadata.action_space as DiscreteAction[];
+      const exactMatch = discreteActions.some(
+        action => action.steering_angle === steeringAngle && action.speed === speed
+      );
+
+      if (!exactMatch) {
+        this.logger.warn(
+          `Requested action (${steeringAngle}, ${speed}) is not in the discrete action space, finding closest match`
+        );
+      }
+
       // Find closest discrete action
       const closestAction = this.findClosestDiscreteAction(
         steeringAngle,

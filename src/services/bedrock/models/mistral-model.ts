@@ -1,4 +1,5 @@
 import { Logger, getLogger } from "../../../utils/logger";
+import { ActionSpace, ActionSpaceType } from "../../../utils/model-metadata";
 import {
   IModelHandler,
   Message,
@@ -11,6 +12,8 @@ export class MistralModelHandler implements IModelHandler {
   private maxContextMessages: number = 0;
   private conversationContext: Message[] = [];
   private logger: Logger;
+  private actionSpace?: ActionSpace;
+  private actionSpaceType?: ActionSpaceType;
 
   constructor() {
     this.logger = getLogger("Mistral");
@@ -27,6 +30,14 @@ export class MistralModelHandler implements IModelHandler {
 
   setMaxContextMessages(max: number): void {
     this.maxContextMessages = max;
+  }
+
+  setActionSpace(actionSpace: ActionSpace): void {
+    this.actionSpace = actionSpace;
+  }
+
+  setActionSpaceType(actionSpaceType: ActionSpaceType): void {
+    this.actionSpaceType = actionSpaceType;
   }
 
   clearConversation(): void {
@@ -56,10 +67,22 @@ export class MistralModelHandler implements IModelHandler {
           role: "system",
           content: this.systemPrompt,
         },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                action_space_type: this.actionSpaceType,
+                action_space: this.actionSpace,
+              }),
+            },
+          ],
+        },
         ...(this.conversationContext.length > 0 && this.maxContextMessages > 0
-          ? this.conversationContext.slice(-this.maxContextMessages * 2)
+          ? this.conversationContext.slice(-this.maxContextMessages)
           : []),
-        userMessage
+        userMessage,
       ],
       max_tokens: parseInt(process.env.MAX_TOKENS || "1000"),
     };
@@ -80,7 +103,7 @@ export class MistralModelHandler implements IModelHandler {
       // Limit context length if needed
       if (this.maxContextMessages > 0) {
         this.conversationContext = this.conversationContext.slice(
-          -this.maxContextMessages * 2
+          -this.maxContextMessages
         );
       }
     }

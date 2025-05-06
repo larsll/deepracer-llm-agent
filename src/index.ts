@@ -29,9 +29,11 @@ async function main() {
     ? LogLevel[process.env.LOG_LEVEL.toUpperCase() as keyof typeof LogLevel] ||
       LogLevel.INFO
     : LogLevel.INFO;
+  
+  // Create the main Agent class
   const agent = new DeepRacerAgent({
     logLevel,
-    metadataFilePath: "examples/model_metadata_llm.json",
+    metadataFilePath: options.metadataFilePath,
   });
 
   try {

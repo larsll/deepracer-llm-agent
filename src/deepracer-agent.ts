@@ -21,8 +21,6 @@ class DeepRacerAgent {
   private logger: Logger;
   private maxContextMessages: number = 0;
   private metadata?: ModelMetadata;
-  private actionSpaceType?: ActionSpaceType;
-  private initialized: boolean = false;
 
   constructor(
     options: {
@@ -33,17 +31,30 @@ class DeepRacerAgent {
     // Initialize logger
     this.logger = getLogger("DeepRacer", options.logLevel);
 
-    // Initialize the Bedrock service
-    this.bedrockService = new BedrockService(options.logLevel);
-
     // Initialize pricing service with AWS region from environment
     this.pricingService = new PricingService(
       process.env.AWS_REGION || "us-east-1"
     );
 
     // Load model metadata
-    const metadataPath = options.metadataFilePath || "";
-    this.loadModelMetadata(metadataPath);
+    this.loadModelMetadata(options.metadataFilePath || "");
+
+    // Initialize BedrockService with metadata in a single step
+    this.bedrockService = new BedrockService({
+      metadata: this.metadata,
+      logLevel: options.logLevel,
+    });
+
+    this.logger.info(
+      `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
+    );
+
+    // Load pricing data for the model
+    this.pricingService
+      .loadModelPricing(this.modelId || "")
+      .catch((error) =>
+        this.logger.warn(`Failed to initialize pricing: ${error}`)
+      );
   }
 
   /**
@@ -54,34 +65,18 @@ class DeepRacerAgent {
     try {
       // Load and validate model metadata
       this.metadata = metadataHandler.loadModelMetadata(filePath);
-      console.log("Model metadata loaded successfully:", this.metadata);
-      this.actionSpaceType = metadataHandler.getActionSpaceType();
+      this.logger.debug("Model metadata loaded successfully:", this.metadata);
 
       // Check if we're using an LLM model
       if (metadataHandler.isLLMModel()) {
-        const llmConfig = metadataHandler.getLLMConfig();
-
-        if (!llmConfig) {
+        if (!metadataHandler.getLLMConfig()) {
           throw new Error("LLM configuration missing");
         }
 
-        // Configure LLM parameters
-        this.setupLLMConfiguration(llmConfig);
-
-        this.logger.info(
-          `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
-        );
-
-        // Load pricing data for the model
-        this.pricingService
-          .loadModelPricing(this.modelId || "")
-          .catch((error) =>
-            this.logger.warn(`Failed to initialize pricing: ${error}`)
-          );
+        // Extract the model ID for this agent
+        this.setupAgentConfiguration(this.metadata);
       } else {
-        this.logger.info(
-          `🚗 DeepRacer Agent initialized with neural network type: ${metadataHandler.getNeuralNetworkType()}`
-        );
+        throw new Error(`🚗 DeepRacer Agent only works with LLM models.`);
       }
     } catch (error) {
       this.logger.error(
@@ -92,10 +87,15 @@ class DeepRacerAgent {
   }
 
   /**
-   * Configure the agent with LLM settings from metadata
-   * @param llmConfig The LLM configuration
+   * Configure the agent with settings from metadata
+   * @param metadata The model metadata
    */
-  private setupLLMConfiguration(llmConfig: LLMConfig): void {
+  private setupAgentConfiguration(metadata: ModelMetadata): void {
+    const llmConfig = metadata.llm_config;
+    if (!llmConfig) {
+      throw new Error("LLM configuration missing");
+    }
+
     // Set model ID from LLM config, with fallback to environment variables
     this.modelId =
       llmConfig.model_id ||
@@ -107,21 +107,13 @@ class DeepRacerAgent {
       throw new Error("No model ID specified in LLM config or environment");
     }
 
-    // Set maximum context messages
+    // Store maximum context messages for the agent's own reference
     this.maxContextMessages = llmConfig.context_window || 0;
 
     if (this.maxContextMessages > 0) {
       this.logger.info(
         `Context memory limited to last ${this.maxContextMessages} messages`
       );
-      this.bedrockService.setMaxContextMessages(this.maxContextMessages);
-    }
-
-    // Set system prompt
-    if (Array.isArray(llmConfig.system_prompt)) {
-      this.bedrockService.setSystemPrompt(llmConfig.system_prompt.join("\n"));
-    } else {
-      this.bedrockService.setSystemPrompt(llmConfig.system_prompt);
     }
   }
 
@@ -159,16 +151,13 @@ class DeepRacerAgent {
     }
 
     try {
-      const response = await this.bedrockService.processImageSync(
+      const drivingAction = await this.bedrockService.processImageSync(
         imageBuffer,
-        this.modelId,
         prompt
       );
 
       try {
-        // Extract driving action using model-specific handler
-        const drivingAction =
-          this.bedrockService.extractDrivingAction(response);
+        this.logger.info("Extracted driving action:", drivingAction);
 
         // Validate the driving action
         if (
@@ -176,7 +165,10 @@ class DeepRacerAgent {
           drivingAction.steering_angle === undefined
         ) {
           this.logger.warn("Missing required driving parameters in response:");
-          this.logger.warn("Raw response:", JSON.stringify(response, null, 2));
+          this.logger.warn(
+            "Raw response:",
+            JSON.stringify(drivingAction, null, 2)
+          );
 
           // Provide default values for missing parameters
           if (!drivingAction.speed) drivingAction.speed = 1.0; // Safe default speed
@@ -194,7 +186,6 @@ class DeepRacerAgent {
         );
       } catch (parseError) {
         this.logger.error("Failed to parse driving action:", parseError);
-        this.logger.debug("Raw response:", JSON.stringify(response, null, 2));
         throw new Error("Failed to parse driving action from LLM response");
       }
     } catch (error) {
@@ -269,28 +260,6 @@ class DeepRacerAgent {
           this.logger.warn(`Failed to refresh pricing: ${error}`)
         );
     }
-  }
-
-  /**
-   * Get the currently loaded model metadata
-   * @returns The model metadata object
-   */
-  public getModelMetadata(): ModelMetadata {
-    if (!this.metadata) {
-      throw new Error("Model metadata is not loaded");
-    }
-    return this.metadata;
-  }
-
-  /**
-   * Get the action space type (discrete or continuous)
-   * @returns ActionSpaceType enum value
-   */
-  public getActionSpaceType(): ActionSpaceType {
-    if (!this.actionSpaceType) {
-      throw new Error("Action space type is not initialized");
-    }
-    return this.actionSpaceType;
   }
 }
 

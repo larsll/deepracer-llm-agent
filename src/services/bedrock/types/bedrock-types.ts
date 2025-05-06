@@ -1,3 +1,5 @@
+import { ActionSpace, ActionSpaceType } from "../../../utils/model-metadata";
+
 /**
  * Interface for token usage data
  */
@@ -25,7 +27,17 @@ export interface IModelHandler {
    * Set max context messages to retain
    */
   setMaxContextMessages(max: number): void;
+
+  /**
+   * Set action space
+   */
+  setActionSpace(actionSpace: ActionSpace): void;
   
+  /**
+   * Set action space type
+   */
+  setActionSpaceType(actionSpaceType: ActionSpaceType): void;  
+
   /**
    * Clear conversation history
    */

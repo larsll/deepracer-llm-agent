@@ -4,7 +4,8 @@ import {
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 import { Logger, LogLevel, getLogger } from "../../utils/logger";
-import { IModelHandler, TokenUsageData } from "./types/bedrock-types";
+import { ActionSpace, ActionSpaceType } from "../../utils/model-metadata";
+import { DrivingAction, IModelHandler, TokenUsageData } from "./types/bedrock-types";
 import awsConfig from "../../utils/aws-config";
 
 /**
@@ -80,6 +81,21 @@ export abstract class BaseBedrockService {
   }
 
   /**
+   * Set the action space configuration and its type
+   * @param actionSpace The action space configuration
+   * @param actionSpaceType The type of action space
+   */
+  setActionSpace(actionSpace: ActionSpace, actionSpaceType: ActionSpaceType): void {
+    if (this.modelHandler) {
+      this.modelHandler.setActionSpace(actionSpace);
+      this.modelHandler.setActionSpaceType(actionSpaceType);
+      this.logger.info(`Action space set to ${actionSpaceType}`);
+    } else {
+      this.logger.warn("Model handler not set. Cannot set action space.");
+    }
+  }
+
+  /**
    * Track token usage from a response using the model handler
    */
   trackTokenUsage(response: any): void {
@@ -130,7 +146,7 @@ export abstract class BaseBedrockService {
     imageBuffer: Buffer,
     modelId: string,
     prompt: string = "Analyze this image"
-  ): Promise<any> {
+  ): Promise<DrivingAction> {
     if (!this.modelHandler) {
       throw new Error("Model handler not set. Call setModelHandler first.");
     }
@@ -178,10 +194,13 @@ export abstract class BaseBedrockService {
         userMessage
       );
 
+      // Extract driving action
+      const drivingAction = this.modelHandler.extractDrivingAction(parsedResponse);
+
       // Track token usage
       this.trackTokenUsage(responseBody);
 
-      return parsedResponse;
+      return drivingAction;
     } catch (error) {
       this.logger.error("Error processing image with Bedrock:", error);
       throw error;
