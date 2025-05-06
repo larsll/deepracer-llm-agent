@@ -22,7 +22,7 @@ async function main() {
 
   // Default skipFactor to 2 if not specified
   const skipFactor = options.skipFactor || 2;
-  mainLogger.info(`Using frame skip factor: ${skipFactor}`);
+  mainLogger.debug(`Using frame skip factor: ${skipFactor}`);
 
   // Create the DeepRacer agent with a specified log level
   const logLevel = process.env.LOG_LEVEL
@@ -60,17 +60,7 @@ async function main() {
       return;
     }
 
-    mainLogger.info(`Found ${imageFiles.length} images to process`);
-
-    // Apply start offset if specified
     const startOffset = options.startOffset || 0;
-    if (startOffset > 0) {
-      mainLogger.info(
-        `Starting from image ${startOffset} (skipping ${startOffset} images)`
-      );
-    }
-
-    // Determine how many frames to process
     const maxFrames =
       options.frames ||
       Math.floor((imageFiles.length - startOffset) / skipFactor);
@@ -79,7 +69,7 @@ async function main() {
       Math.floor((imageFiles.length - startOffset) / skipFactor)
     );
     mainLogger.info(
-      `Will process ${framesToProcess} frames (every ${skipFactor}th frame)`
+      `🖼️ Found ${imageFiles.length} images. Starting from image ${startOffset}. Will process ${framesToProcess} frames (every ${skipFactor}. frame).`
     );
 
     // Process each image in sequence with the specified skip factor

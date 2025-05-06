@@ -23,15 +23,19 @@ export abstract class BaseBedrockService {
   private promptTokens: number = 0;
   private completionTokens: number = 0;
   private totalTokens: number = 0;
+  private awsConfig: BedrockRuntimeClientConfig;
 
   constructor(logLevel?: LogLevel) {
     // Initialize logger
     this.logger = getLogger("Bedrock", logLevel);
 
-    // Use credentials from aws-config
-    this.bedrockClient = new BedrockRuntimeClient(awsConfig as BedrockRuntimeClientConfig);
+    // Store AWS config
+    this.awsConfig = awsConfig;
 
-    this.logger.info(
+    // Use credentials from aws-config
+    this.bedrockClient = new BedrockRuntimeClient(this.awsConfig);
+
+    this.logger.debug(
       `Initialized Bedrock client for region: ${awsConfig.region}`
     );
   }
@@ -42,7 +46,7 @@ export abstract class BaseBedrockService {
    */
   setModelHandler(modelHandler: IModelHandler): void {
     this.modelHandler = modelHandler;
-    this.logger.info(`Set model handler for: ${modelHandler.getModelType()}`);
+    this.logger.debug(`Set model handler for: ${modelHandler.getModelType()}`);
   }
 
   /**
@@ -54,7 +58,7 @@ export abstract class BaseBedrockService {
     if (this.modelHandler) {
       this.modelHandler.setSystemPrompt(systemPrompt);
     }
-    this.logger.info("System prompt set");
+    this.logger.debug("System prompt set");
   }
 
   /**
@@ -62,7 +66,7 @@ export abstract class BaseBedrockService {
    * @param maxMessages The maximum number of messages to keep in context
    */
   setMaxContextMessages(maxMessages: number): void {
-    this.logger.info(`Max context messages set to ${maxMessages}`);
+    this.logger.debug(`Max context messages set to ${maxMessages}`);
     this.maxContextMessages = maxMessages;
     if (this.modelHandler) {
       this.modelHandler.setMaxContextMessages(maxMessages);
@@ -89,7 +93,7 @@ export abstract class BaseBedrockService {
     if (this.modelHandler) {
       this.modelHandler.setActionSpace(actionSpace);
       this.modelHandler.setActionSpaceType(actionSpaceType);
-      this.logger.info(`Action space set to ${actionSpaceType}`);
+      this.logger.debug(`Action space set to ${actionSpaceType}`);
     } else {
       this.logger.warn("Model handler not set. Cannot set action space.");
     }

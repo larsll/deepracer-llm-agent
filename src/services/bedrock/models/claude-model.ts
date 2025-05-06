@@ -19,7 +19,7 @@ export class ClaudeModelHandler implements IModelHandler {
   constructor(modelId: string) {
     this.logger = getLogger("Claude");
     this.is37Model = modelId.includes("claude-3-7");
-    this.logger.info(
+    this.logger.debug(
       `Initialized Claude model handler (${
         this.is37Model ? "3.7" : "standard"
       } format)`
@@ -152,21 +152,26 @@ export class ClaudeModelHandler implements IModelHandler {
       content.substring(0, 200)
     );
 
-    // Extract JSON from content - Claude often wraps it in ```json blocks
-    const jsonMatch = content.match(
-      /```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/
-    );
-
-    if (jsonMatch) {
-      const jsonString = jsonMatch[1] || jsonMatch[2];
-      try {
-        return JSON.parse(jsonString.trim());
-      } catch (error) {
-        this.logger.error("Failed to parse JSON from Claude response:", error);
-        throw new Error("Invalid JSON in Claude response");
+    // Try to extract JSON from content - either from code blocks or directly
+    try {
+      // First try to find JSON in code blocks
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/);
+      
+      if (jsonMatch) {
+        // Parse JSON from code block
+        const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
+        this.logger.debug("Extracted JSON from formatted block");
+        return JSON.parse(jsonString);
       }
-    } else {
-      throw new Error("No JSON found in Claude response");
+      
+      // If no code block found, try parsing the entire content
+      this.logger.debug("Attempting to parse entire content as JSON");
+      return JSON.parse(content.trim());
+      
+    } catch (error) {
+      this.logger.error("Failed to parse Claude response as JSON:", error);
+      this.logger.debug("Raw content:", content);
+      throw new Error("No valid JSON found in Claude response");
     }
   }
 

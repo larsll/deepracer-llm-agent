@@ -1,7 +1,6 @@
 import { BaseBedrockService } from "./base-bedrock-service";
 import { ModelFactory } from "./models/model-factory";
 import { LogLevel } from "../../utils/logger";
-import * as fs from "fs";
 import { ModelMetadata } from "../../utils/model-metadata";
 import { DrivingAction } from "./types/bedrock-types";
 
@@ -43,7 +42,7 @@ class BedrockService extends BaseBedrockService {
       throw new Error("No model ID specified in metadata or environment");
     }
 
-    this.logger.info(`Initializing BedrockService with model: ${modelId}`);
+    this.logger.debug(`Initializing BedrockService with model: ${modelId}`);
     this.currentModelId = modelId;
 
     // Create appropriate model handler

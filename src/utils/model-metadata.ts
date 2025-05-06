@@ -125,7 +125,7 @@ export class ModelMetadataHandler {
       // Validate the loaded metadata
       this.validateMetadata();
 
-      this.logger.info(
+      this.logger.debug(
         `Loaded model metadata with ${this.getActionSpaceType()} action space and ${
           this.metadata.neural_network
         } neural network type`

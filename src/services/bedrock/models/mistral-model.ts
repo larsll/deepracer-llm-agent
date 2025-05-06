@@ -17,7 +17,7 @@ export class MistralModelHandler implements IModelHandler {
 
   constructor() {
     this.logger = getLogger("Mistral");
-    this.logger.info("Initialized Mistral model handler");
+    this.logger.debug("Initialized Mistral model handler");
   }
 
   getModelType(): string {
@@ -119,33 +119,29 @@ export class MistralModelHandler implements IModelHandler {
         content.substring(0, 200)
       );
 
-      // Try to extract JSON from content if it's wrapped in code blocks
-      const jsonMatch = content.match(
-        /```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/
-      );
-
-      if (jsonMatch) {
-        const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
-        this.logger.debug("Extracted JSON string:", jsonString);
-
-        try {
+      // Try to extract JSON from content - either from code blocks or directly
+      try {
+        // First try to find JSON in code blocks
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/);
+        
+        if (jsonMatch) {
+          // Parse JSON from code block
+          const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
+          this.logger.debug("Extracted JSON from formatted block");
           return JSON.parse(jsonString);
-        } catch (jsonParseError) {
-          this.logger.error("Failed to parse extracted JSON:", jsonParseError);
-          throw new Error("Invalid JSON in Mistral response");
         }
-      } else {
+        
         // If no code block found, try parsing the entire content
-        try {
-          return JSON.parse(content.trim());
-        } catch (e) {
-          this.logger.error("Failed to parse content as JSON:", content);
-          throw new Error("No valid JSON found in Mistral response");
-        }
+        this.logger.debug("Attempting to parse entire content as JSON");
+        return JSON.parse(content.trim());
+        
+      } catch (error) {
+        this.logger.error("Failed to parse Mistral response as JSON:", error);
+        throw new Error("No valid JSON found in Mistral response");
       }
     } else {
       this.logger.error(
-        "Unexpected response structure:",
+        "Unexpected Mistral response structure:",
         JSON.stringify(response).substring(0, 200)
       );
       throw new Error("Unexpected Mistral response structure");

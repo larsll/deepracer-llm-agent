@@ -17,7 +17,7 @@ export class NovaModelHandler implements IModelHandler {
 
   constructor() {
     this.logger = getLogger("Nova");
-    this.logger.info("Initialized Nova model handler");
+    this.logger.debug("Initialized Nova model handler");
   }
 
   getModelType(): string {
@@ -128,32 +128,26 @@ export class NovaModelHandler implements IModelHandler {
         content.substring(0, 200)
       );
 
-      // Try to extract JSON from content if it's wrapped in code blocks
-      const jsonMatch = content.match(
-        /```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/
-      );
-
-      if (jsonMatch) {
-        const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
-        this.logger.debug("Extracted JSON string:", jsonString);
-
-        try {
+      // Try to extract JSON from content - either from code blocks or directly
+      try {
+        // First try to find JSON in code blocks
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```|(\{[\s\S]*?\})/);
+        
+        if (jsonMatch) {
+          // Parse JSON from code block
+          const jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
+          this.logger.debug("Extracted JSON from formatted block");
           return JSON.parse(jsonString);
-        } catch (jsonParseError) {
-          this.logger.error(
-            "Failed to parse extracted JSON from Nova response:",
-            jsonParseError
-          );
-          throw new Error("Invalid JSON in Nova response");
-        }
-      } else {
+        } 
+        
         // If no code block found, try parsing the entire content
-        try {
-          return JSON.parse(content.trim());
-        } catch (e) {
-          this.logger.error("Failed to parse Nova content as JSON:", content);
-          throw new Error("No valid JSON found in Nova response");
-        }
+        this.logger.debug("Attempting to parse entire content as JSON");
+        return JSON.parse(content.trim());
+        
+      } catch (error) {
+        this.logger.error("Failed to parse Nova response as JSON:", error);
+        this.logger.debug("Raw content:", content);
+        throw new Error("No valid JSON found in Nova response");
       }
     } else {
       this.logger.error(

@@ -46,7 +46,7 @@ class DeepRacerAgent {
     });
 
     this.logger.info(
-      `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId}`
+      `🚗 DeepRacer LLM Agent initialized with model: ${this.modelId} in ${process.env.AWS_REGION || "us-east-1"}`
     );
 
     // Load pricing data for the model
@@ -111,7 +111,7 @@ class DeepRacerAgent {
     this.maxContextMessages = llmConfig.context_window || 0;
 
     if (this.maxContextMessages > 0) {
-      this.logger.info(
+      this.logger.debug(
         `Context memory limited to last ${this.maxContextMessages} messages`
       );
     }
