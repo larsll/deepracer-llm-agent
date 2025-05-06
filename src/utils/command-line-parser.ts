@@ -45,7 +45,10 @@ export function parseCommandLineArgs(
       }
     } else if (args[i] === "--config" || args[i] === "-c") {
       options.metadataFilePath = args[++i].trim();
-      if (typeof options.metadataFilePath !== "string" || options.metadataFilePath.length === 0) {
+      if (
+        typeof options.metadataFilePath !== "string" ||
+        options.metadataFilePath.length === 0
+      ) {
         log.error("Invalid value for --config. Must be a non-empty string.");
         return null;
       }
@@ -69,7 +72,7 @@ Options:
   --frames, -f <number>   Number of frames to process (default: process all frames)
   --speed, -x <number>    Process every Nth frame (default: 2)
   --start, -s <number>    Start processing from Nth image (default: 0)
-  --context, -c <number>  Maximum number of previous messages to retain in context (default: unlimited)
+  --config, -c <file>     The path to the metadata file
   --help, -h              Show this help message
   `);
 }

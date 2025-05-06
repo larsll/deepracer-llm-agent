@@ -2,6 +2,14 @@
 
 This project implements a demonstrator agent based on Large Language Models (LLMs) for AWS DeepRacer. It enables intelligent decision-making for autonomous racing by leveraging language models to process visual inputs and generate optimal racing strategies.
 
+## Features
+
+- Natural language processing for DeepRacer control using LLMs
+- Integration with AWS Bedrock for efficient model inferencing
+- Computer vision capabilities for track and obstacle detection
+- Adaptive decision-making based on race conditions
+- Configurable context window to provide the LLM with prior knowledge
+
 ## Installation
 
 1. Clone the repository:
@@ -25,20 +33,22 @@ This project implements a demonstrator agent based on Large Language Models (LLM
 
 To start the agent, run:
 ```
-npm agent
+npm agent -- <options>
 ```
 
-The LLM agent will process track images from DeepRacer and make racing decisions. You can configure the agent parameters in the configuration files.
+### Command Line Options
 
-## Features
+The agent can be configured using the following command-line options:
 
-- Natural language processing for DeepRacer control using LLMs
-- Integration with AWS Bedrock for efficient model inferencing
-- Computer vision capabilities for track and obstacle detection
-- Adaptive decision-making based on race conditions
-- Reinforcement learning components to improve over time
-- Performance analytics and visualization tools
-- Customizable prompting strategies for different racing scenarios
+- `--frames`, `-f <number>`: Specify the number of frames to process (default: process all frames).
+- `--speed`, `-x <number>`: Process every Nth frame (default: 2).
+- `--start`, `-s <number>`: Start processing from the Nth image (default: 0).
+- `--config`, `-c <file>`: Provide the path to the metadata file.
+- `--help`, `-h`: Display this help message.
+
+The LLM agent will process track images from DeepRacer (the examples are in `test-images/`) and make racing decisions. You can configure the agent parameters in 
+an adjusted `model_metadata.json` - see examples in `examples/`.
+
 
 ## Contributing
 
