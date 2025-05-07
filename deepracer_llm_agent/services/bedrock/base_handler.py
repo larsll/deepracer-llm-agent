@@ -16,7 +16,7 @@ class ModelHandler(ABC):
     Provides common functionality and defines the interface that all handlers must implement.
     """
 
-    def __init__(self, model_id: str, region: Optional[str] = None):
+    def __init__(self, model_id: str, model_class: str, region: Optional[str] = None):
         """
         Initialize the model handler
 
@@ -25,6 +25,7 @@ class ModelHandler(ABC):
             region: AWS region (optional - uses boto3 default otherwise)
         """
         self.model_id = model_id
+        self.model_class = model_class
         self.region = region or os.environ.get(
             "AWS_DEFAULT_REGION", "us-east-1")
 
@@ -143,7 +144,6 @@ class ModelHandler(ABC):
         """
         pass
 
-    @abstractmethod
     def extract_driving_action(self, response_text: str) -> Dict[str, Any]:
         """
         Extract the driving action from the model's text response. Override in subclasses.
@@ -154,8 +154,7 @@ class ModelHandler(ABC):
         Returns:
             Dict containing the driving action
         """
-        raise NotImplementedError(
-            "Subclasses must implement extract_driving_action()")
+        return extract_json_from_llm_response(response_text, self.logger, self.model_class)
 
     def process(self, prompt: str, image_data: Optional[str] = None) -> Dict[str, Any]:
         """

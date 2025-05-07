@@ -18,7 +18,7 @@ class MistralHandler(ModelHandler):
             model_id: The Mistral model ID (e.g., "mistral.mistral-large-2402-vision-v1:0")
             region: AWS region (optional)
         """
-        super().__init__(model_id, region)
+        super().__init__(model_id, "Mistral", region)
 
         # Mistral-specific settings
         self.max_tokens = int(os.environ.get("MAX_TOKENS", "1000"))
@@ -169,14 +169,3 @@ class MistralHandler(ModelHandler):
             self.logger.debug(
                 "Could not determine token usage from Mistral response")
 
-    def extract_driving_action(self, response_text: str) -> Dict[str, Any]:
-        """
-        Extract the driving action from Mistral's text response
-
-        Args:
-            response_text: The text response from Mistral
-
-        Returns:
-            Dict containing the driving action
-        """
-        return extract_json_from_llm_response(response_text, self.logger, "Mistral")

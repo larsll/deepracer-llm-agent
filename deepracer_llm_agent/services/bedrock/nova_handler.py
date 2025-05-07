@@ -18,7 +18,7 @@ class NovaHandler(ModelHandler):
             model_id: The Nova model ID (e.g., "amazon.nova-pro-v1")
             region: AWS region (optional)
         """
-        super().__init__(model_id, region)
+        super().__init__(model_id, "Nova", region)
 
         # Nova-specific settings
         self.max_tokens = int(os.environ.get("MAX_TOKENS", "1000"))
@@ -152,14 +152,4 @@ class NovaHandler(ModelHandler):
             self.logger.debug(
                 "Could not determine token usage from Nova response")
 
-    def extract_driving_action(self, response_text: str) -> Dict[str, Any]:
-        """
-        Extract the driving action from Nova's text response
 
-        Args:
-            response_text: The text response from Nova
-
-        Returns:
-            Dict containing the driving action
-        """
-        return extract_json_from_llm_response(response_text, self.logger, "Nova")

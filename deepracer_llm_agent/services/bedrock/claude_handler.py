@@ -18,7 +18,7 @@ class ClaudeHandler(ModelHandler):
             model_id: The Claude model ID (e.g., "anthropic.claude-3-sonnet-20240229-v1:0")
             region: AWS region (optional)
         """
-        super().__init__(model_id, region)
+        super().__init__(model_id, "Claude", region)
 
         # Claude-specific settings
         self.max_tokens = int(os.environ.get("MAX_TOKENS", "1024"))
@@ -157,15 +157,3 @@ class ClaudeHandler(ModelHandler):
         usage = response_body.get("usage", {})
         self.input_tokens += usage.get("input_tokens", 0)
         self.output_tokens += usage.get("output_tokens", 0)
-
-    def extract_driving_action(self, response_text: str) -> Dict[str, Any]:
-        """
-        Extract the driving action from Claude's text response
-
-        Args:
-            response_text: The text response from Claude
-
-        Returns:
-            Dict containing the driving action
-        """
-        return extract_json_from_llm_response(response_text, self.logger, "Claude")
