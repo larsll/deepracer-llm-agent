@@ -75,12 +75,15 @@ class ClaudeHandler(ModelHandler):
         # Add the action space and type
         if self.action_space is not None and self.action_space_type is not None:
             messages.append({
-                "type": "text",
-                "text": json.dumps({
-                    "action_space_type": self.action_space_type,
-                    "action_space": self.action_space
-                })
-            })                
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": json.dumps({
+                        "action_space_type": self.action_space_type,
+                        "action_space": self.action_space
+                    })
+                }]
+            })
 
         # Add conversation context if available
         if self.conversation_context and self.max_context_messages > 0:
