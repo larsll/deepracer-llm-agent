@@ -20,13 +20,19 @@ The LLM responds with JSON containing recommended steering angle and speed value
    ```
    cd deepracer-llm-agent
    ```
-3. Install the dependencies:
+3. Create and activate a virtual environment:
    ```
-   npm install
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-4. Set up your environment variables by copying the `.env.example` to `.env` and filling in your AWS credentials:
+4. Install the dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+5. Set up your environment variables by copying the `.env.example` to `.env` and filling in your AWS credentials:
    ```
    cp .env.example .env
+   ```
    ```
 
 ### AWS Configuration
