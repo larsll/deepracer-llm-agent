@@ -5,6 +5,8 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 
+from deepracer_llm_agent.utils import logger
+
 from .services import BedrockService, PricingService
 from .utils.model_metadata import model_metadata, NeuralNetworkType
 from .utils.json_extractor import extract_json_from_llm_response
@@ -24,14 +26,7 @@ class LLMAgent:
         Args:
             metadata_path: Path to the model metadata JSON file
         """
-        self.logger = logging.getLogger("LLMAgent")
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
-            self.logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+        self.logger = logger.setup_logger("LLMAgent")
 
         # Load and process metadata
         self.metadata_path = metadata_path
@@ -71,8 +66,6 @@ class LLMAgent:
         self.max_context_messages = self.metadata.get(
             "llm_config", {}).get("context_window", 0)
 
-
-
         self.logger.info(
             f"🚗 DeepRacer LLM Agent initialized with model: {self.model_id} in {aws_region}")
 
@@ -92,13 +85,35 @@ class LLMAgent:
     def _load_pricing(self) -> None:
         """Load pricing data for the current model"""
         try:
-            # For simplicity, we'll use the synchronous version instead of async
-            # In a real implementation, you might want to handle this properly with async
-            self.pricing_service.reset_to_defaults()  # Start with defaults
-            # We'd ideally call the async method here, but we'll skip the actual API call for now
-            # and just use defaults
+            # Ensure valid model ID format before calling
+            if not self.model_id or ':' not in self.model_id:
+                self.logger.warning(
+                    f"Invalid model ID format: {self.model_id}")
+                self.pricing_service.reset_to_defaults()
+                return
+
+            # Call with proper parameters
+            success = self.pricing_service.load_model_pricing(
+                model_id=self.model_id,
+                region=self.bedrock_service.region
+            )
+
+            if success:
+                self.logger.info(
+                    f"Successfully loaded pricing for {self.model_id}")
+            else:
+                self.logger.warning(
+                    f"Pricing data not available for {self.model_id}")
+                self.pricing_service.reset_to_defaults()
+
+        except ValueError as e:
+            # Handle specific validation errors
+            self.logger.warning(f"Invalid pricing parameters: {e}")
+            self.pricing_service.reset_to_defaults()
         except Exception as e:
+            # Handle other errors
             self.logger.warning(f"Failed to initialize pricing: {e}")
+            self.pricing_service.reset_to_defaults()
 
     def process_image(self, image_path: str) -> Dict[str, Any]:
         """
@@ -133,11 +148,13 @@ class LLMAgent:
                 action = self.bedrock_service.process(prompt, b64_image)
 
                 # Log and validate the response
-                self.logger.debug(f"Extracted driving action: {json.dumps(action)}")
+                self.logger.debug(
+                    f"Extracted driving action: {json.dumps(action)}")
 
                 # Validate the action has required fields
                 if 'steering_angle' not in action or 'speed' not in action:
-                    self.logger.warning("Missing required driving parameters in response")
+                    self.logger.warning(
+                        "Missing required driving parameters in response")
 
                     # Provide default values for missing parameters
                     if 'steering_angle' not in action:

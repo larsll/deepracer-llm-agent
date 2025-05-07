@@ -9,18 +9,7 @@ from pathlib import Path
 from .agent import LLMAgent
 from typing import Dict, Any, Optional
 
-
-def setup_logger(log_level_name: str = "INFO") -> logging.Logger:
-    """Set up and return a logger for the main module"""
-    log_level = getattr(logging, log_level_name.upper(), logging.INFO)
-    logger = logging.getLogger("Main")
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(log_level)
-    return logger
+from deepracer_llm_agent.utils.logger import setup_logger
 
 
 def parse_arguments() -> Optional[Dict[str, Any]]:
@@ -36,7 +25,7 @@ def parse_arguments() -> Optional[Dict[str, Any]]:
                         default='model_metadata.json', help='Path to metadata file')
     parser.add_argument('--images', '-i', type=str,
                         default='./tests/images', help='Path to folder with images')
-    
+
     if len(sys.argv) == 2 and sys.argv[1] in ['-h', '--help']:
         parser.print_help()
         return None
@@ -47,8 +36,7 @@ def parse_arguments() -> Optional[Dict[str, Any]]:
 def main():
     """Main entry point for the DeepRacer LLM Agent application"""
     # Set up logging
-    log_level = os.getenv("LOG_LEVEL", "INFO")
-    logger = setup_logger(log_level)
+    logger = setup_logger("Main")
 
     # Parse command line arguments
     options = parse_arguments()
@@ -113,8 +101,6 @@ def main():
                 logger.debug("Waiting before processing next image...")
                 time.sleep(0.05)
 
-
-
         logger.info("✅ All images processed successfully")
 
     except KeyboardInterrupt:
@@ -145,6 +131,7 @@ def main():
                         f"   Completion rate:   ${pricing.get('completion_rate', 0):.4f}/1K tokens")
                     logger.info(
                         f"   Estimated cost:    ${token_usage.get('estimated_cost', 0):.4f}")
-                
+
+
 if __name__ == "__main__":
     main()
