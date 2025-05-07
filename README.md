@@ -25,10 +25,6 @@ The LLM responds with JSON containing recommended steering angle and speed value
    ```
    poetry install
    ```
-4. Set up your environment variables by copying the `.env.example` to `.env` and filling in your AWS credentials:
-   ```
-   cp .env.example .env
-   ```
 
 ### AWS Configuration
 
@@ -42,7 +38,7 @@ The setup requires two things:
 To start the agent, run:
 
 ```
-python -m deepracer_llm_agent -- <options>
+python -m deepracer_llm_agent <options>
 ```
 
 ### Command Line Options
@@ -53,6 +49,7 @@ The agent can be configured using the following command-line options:
 - `--speed`, `-x <number>`: Process every Nth frame (default: 2).
 - `--start`, `-s <number>`: Start processing from the Nth image (default: 0).
 - `--config`, `-c <file>`: Provide the path to the metadata file.
+- `--images`, `-i <directory>`: Provide the path to the input images
 - `--help`, `-h`: Display this help message.
 
 The LLM agent will process track images from DeepRacer (the examples are in `test-images/`) and make racing decisions. You can configure the agent parameters in

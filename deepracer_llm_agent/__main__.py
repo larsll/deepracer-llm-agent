@@ -35,7 +35,7 @@ def parse_arguments() -> Optional[Dict[str, Any]]:
     parser.add_argument('--config', '-c', type=str,
                         default='model_metadata.json', help='Path to metadata file')
     parser.add_argument('--images', '-i', type=str,
-                        default='./test-images', help='Path to folder with images')
+                        default='./tests/images', help='Path to folder with images')
     
     if len(sys.argv) == 2 and sys.argv[1] in ['-h', '--help']:
         parser.print_help()
@@ -113,32 +113,38 @@ def main():
                 logger.debug("Waiting before processing next image...")
                 time.sleep(0.05)
 
-        # Log the total token usage with pricing
-        token_usage = agent.get_token_usage()
-        if token_usage:
-            logger.info("\n📈 Token Usage Summary:")
-            logger.info(
-                f"   Prompt tokens:     {token_usage.get('prompt_tokens', 0):,}")
-            logger.info(
-                f"   Completion tokens: {token_usage.get('completion_tokens', 0):,}")
-            logger.info(
-                f"   Total tokens:      {token_usage.get('total_tokens', 0):,}")
 
-            # Display pricing rates if available
-            pricing = token_usage.get('pricing', {})
-            if pricing:
-                logger.info(
-                    f"   Prompt rate:       ${pricing.get('prompt_rate', 0):.4f}/1K tokens")
-                logger.info(
-                    f"   Completion rate:   ${pricing.get('completion_rate', 0):.4f}/1K tokens")
-                logger.info(
-                    f"   Estimated cost:    ${token_usage.get('estimated_cost', 0):.4f}")
 
-        logger.info("\n✅ All images processed successfully")
+        logger.info("✅ All images processed successfully")
+
+    except KeyboardInterrupt:
+        logger.info("🛑 Process interrupted by user")
 
     except Exception as e:
         logger.error(f"❌ Error processing images: {e}", exc_info=True)
 
+    finally:
+        if agent:
+            # Log the total token usage with pricing
+            token_usage = agent.get_token_usage()
+            if token_usage:
+                logger.info("📈 Token Usage Summary:")
+                logger.info(
+                    f"   Prompt tokens:     {token_usage.get('prompt_tokens', 0):,}")
+                logger.info(
+                    f"   Completion tokens: {token_usage.get('completion_tokens', 0):,}")
+                logger.info(
+                    f"   Total tokens:      {token_usage.get('total_tokens', 0):,}")
 
+                # Display pricing rates if available
+                pricing = token_usage.get('pricing', {})
+                if pricing:
+                    logger.info(
+                        f"   Prompt rate:       ${pricing.get('prompt_rate', 0):.4f}/1K tokens")
+                    logger.info(
+                        f"   Completion rate:   ${pricing.get('completion_rate', 0):.4f}/1K tokens")
+                    logger.info(
+                        f"   Estimated cost:    ${token_usage.get('estimated_cost', 0):.4f}")
+                
 if __name__ == "__main__":
     main()
