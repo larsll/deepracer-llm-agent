@@ -1,10 +1,11 @@
 # DeepRacer LLM Agent
 
-This code implements a DeepRacer agent that processes track images using Large Language Models (LLMs) through AWS Bedrock. The agent takes camera images from a DeepRacer car, converts them to base64, and sends them to an LLM (Claude, Mistral, or Nova) along with a structured prompt and action space information. For each image, the LLM receives: 
-1) a system prompt describing its role as a driving assistant, 
-2) the action space configuration (continuous or discrete steering/speed ranges), 
-3) the camera image itself, and 
-4) a request to analyze the image and make driving decisions. 
+This code implements a DeepRacer agent that processes track images using Large Language Models (LLMs) through AWS Bedrock. The agent takes camera images from a DeepRacer car, converts them to base64, and sends them to an LLM (Claude, Mistral, or Nova) along with a structured prompt and action space information. For each image, the LLM receives:
+
+1. a system prompt describing its role as a driving assistant,
+2. the action space configuration (continuous or discrete steering/speed ranges),
+3. the camera image itself, and
+4. a request to analyze the image and make driving decisions.
 
 The LLM responds with JSON containing recommended steering angle and speed values, along with reasoning for its decision. The code handles all AWS service integration, maintains conversation context between frames, validates responses, and tracks token usage and costs. It's essentially creating a vision-language model based autonomous driving agent that can explain its decisions.
 
@@ -20,32 +21,28 @@ The LLM responds with JSON containing recommended steering angle and speed value
    ```
    cd deepracer-llm-agent
    ```
-3. Create and activate a virtual environment:
+3. Install with Poetry:
    ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   poetry install
    ```
-4. Install the dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-5. Set up your environment variables by copying the `.env.example` to `.env` and filling in your AWS credentials:
+4. Set up your environment variables by copying the `.env.example` to `.env` and filling in your AWS credentials:
    ```
    cp .env.example .env
-   ```
    ```
 
 ### AWS Configuration
 
 The setup requires two things:
- 1. AWS credentials that allows to execute Bedrock API calls.
- 2. Enabled models (currently Claude, Mistral and Nova are supported) in the right region.
+
+1.  AWS credentials that allows to execute Bedrock API calls.
+2.  Enabled models (currently Claude, Mistral and Nova are supported) in the right region.
 
 ## Usage
 
 To start the agent, run:
+
 ```
-npm agent -- <options>
+python -m deepracer_llm_agent -- <options>
 ```
 
 ### Command Line Options
@@ -58,9 +55,8 @@ The agent can be configured using the following command-line options:
 - `--config`, `-c <file>`: Provide the path to the metadata file.
 - `--help`, `-h`: Display this help message.
 
-The LLM agent will process track images from DeepRacer (the examples are in `test-images/`) and make racing decisions. You can configure the agent parameters in 
+The LLM agent will process track images from DeepRacer (the examples are in `test-images/`) and make racing decisions. You can configure the agent parameters in
 an adjusted `model_metadata.json` - see examples in `examples/`.
-
 
 ## Contributing
 
