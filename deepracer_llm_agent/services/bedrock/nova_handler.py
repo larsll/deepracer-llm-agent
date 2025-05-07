@@ -64,7 +64,7 @@ class NovaHandler(ModelHandler):
             Dict containing the formatted prompt for Nova
         """
         # Initial system message with action space
-        system_message = {
+        messages = [{
             "role": "user",
             "content": [
                 {"text": self.system_prompt},
@@ -73,20 +73,21 @@ class NovaHandler(ModelHandler):
                     "action_space": self.action_space
                 })}
             ]
-        }
+        }]
 
-        # Add the current user message
-        user_message = self._create_user_message(text_prompt, image_data)
-        if self.max_context_messages > 0:
-            self.conversation_context.append(user_message)
-
-        # Build the messages array with context if available
-        messages = [system_message, user_message]
-
+        # Add conversation context if available
         if self.conversation_context and self.max_context_messages > 0:
             # Add conversation context, limiting to max messages
             messages.extend(
                 self.conversation_context[-self.max_context_messages:])
+
+        # Add the new user message
+        user_message = self._create_user_message(text_prompt, image_data)
+        messages.append(user_message)
+
+        # Add the user message to conversation context
+        if self.max_context_messages > 0:
+            self.conversation_context.append(user_message)
 
         # Nova payload structure
         return {

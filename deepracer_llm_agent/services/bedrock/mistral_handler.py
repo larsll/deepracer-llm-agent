@@ -64,11 +64,6 @@ class MistralHandler(ModelHandler):
         Returns:
             Dict containing the formatted prompt for Mistral
         """
-        # Create the user message with image
-        user_message = self._create_user_message(text_prompt, image_data)
-
-        if self.max_context_messages > 0:
-            self.conversation_context.append(user_message)
 
         # Create system message
         system_message = {
@@ -99,8 +94,13 @@ class MistralHandler(ModelHandler):
             messages.extend(
                 self.conversation_context[-self.max_context_messages:])
 
-        # Add the current user message
+        # Add the new user message
+        user_message = self._create_user_message(text_prompt, image_data)
         messages.append(user_message)
+
+        # Add the user message to conversation context if tracking
+        if self.max_context_messages > 0:
+            self.conversation_context.append(user_message)
 
         # Mistral payload structure
         return {
