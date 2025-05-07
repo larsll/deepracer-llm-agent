@@ -67,9 +67,9 @@ def main():
         if os.path.isabs(options['images']):
             test_images_dir = Path(options['images'])
         else:
-            test_images_dir = os.path.join(Path.cwd(), options['images'])
+            test_images_dir = Path(Path.cwd(), options['images'])
 
-        if not test_images_dir.exists():
+        if not os.path.exists(test_images_dir):
             logger.error(f"Test images directory not found: {test_images_dir}")
             return
 
