@@ -14,6 +14,7 @@ out/
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Logs
 logs/
@@ -32,6 +33,8 @@ yarn-error.log*
 *.sublime-*
 *.swp
 *.swo
+*~
+.*.sw[po]
 
 # OS generated files
 .DS_Store
@@ -48,8 +51,42 @@ tmp/
 uploads/
 processed-images/
 .cache/
+test-images/temp/*
+test-images/output/*
 
-# Environment variables - don't commit these!
-.env
-.env.local
-.env.*.local
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+
+# Poetry
+poetry.lock  # Comment this line if you want to commit the lock file
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
