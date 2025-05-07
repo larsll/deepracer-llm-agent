@@ -67,6 +67,9 @@ class MistralHandler(ModelHandler):
         # Create the user message with image
         user_message = self._create_user_message(text_prompt, image_data)
 
+        if self.max_context_messages > 0:
+            self.conversation_context.append(user_message)
+
         # Create system message
         system_message = {
             "role": "system",
@@ -177,32 +180,3 @@ class MistralHandler(ModelHandler):
             Dict containing the driving action
         """
         return extract_json_from_llm_response(response_text, self.logger, "Mistral")
-
-    def process(self, prompt: str, image_data: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Process a prompt with image and return a driving action
-
-        Args:
-            prompt: The text prompt
-            image_data: Base64-encoded image data
-
-        Returns:
-            Dict containing the driving action
-        """
-        # Create the user message and add to conversation context if tracking
-        user_message = self._create_user_message(prompt, image_data)
-
-        # Prepare the prompt
-        request_body = self.prepare_prompt(prompt, image_data)
-
-        if self.max_context_messages > 0:
-            self.conversation_context.append(user_message)
-
-        # Invoke the model
-        response_body = self.invoke_model(request_body)
-
-        # Extract the text response
-        response_text = self.extract_response_text(response_body)
-
-        # Extract and return the driving action
-        return self.extract_driving_action(response_text)
